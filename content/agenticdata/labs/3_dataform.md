@@ -56,11 +56,11 @@ Y entrégale el encargo:
 
 Observa cómo trabaja `agy`: leerá `AGENTS.md` y `sources.js`, creará los ficheros `.sqlx` de las capas *silver* y *gold*, ejecutará `dataform compile`, analizará cualquier error de compilación y lo corregirá por sí mismo hasta que el grafo compile limpiamente. Cuando termine, puedes revisar los cambios propuestos con `/diff`.
 
-Nota: **Si `agy` se desviara en algún modelo** o quieres comparar su código con la implementación de referencia oficial, tienes la solución completa al lado en `src/dataform_reference/` — por ejemplo <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform_reference/definitions/stg_customers.sqlx">stg_customers.sqlx</walkthrough-editor-open-file> y <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform_reference/definitions/fct_daily_revenue.sqlx">fct_daily_revenue.sqlx</walkthrough-editor-open-file>. En caso de necesitarlo, puedes copiar la referencia con:
-
-```bash
-cp ~/bootkon/content/agenticdata/src/dataform_reference/definitions/*.sqlx ~/bootkon/content/agenticdata/src/dataform/definitions/
-```
+> ⚠️ **Solo en caso de emergencia (Opcional — NO ejecutar si `agy` ya compiló sin errores):**
+> Únicamente si `agy` se hubiera atascado y necesitaras sobrescribir tu carpeta `definitions/` con la solución de referencia oficial de `src/dataform_reference/` (por ejemplo <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform_reference/definitions/stg_customers.sqlx">stg_customers.sqlx</walkthrough-editor-open-file> y <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform_reference/definitions/fct_daily_revenue.sqlx">fct_daily_revenue.sqlx</walkthrough-editor-open-file>), ejecuta:
+> ```bash
+> cp ~/bootkon/content/agenticdata/src/dataform_reference/definitions/*.sqlx ~/bootkon/content/agenticdata/src/dataform/definitions/
+> ```
 
 ### Compilar y ejecutar en BigQuery
 

@@ -96,7 +96,7 @@ def check_order_status(order_id: int) -> dict:
 
 root_agent = Agent(
     name="cymbal_concierge",
-    model=os.environ.get("BK_CYMBAL_MODEL", "gemini-2.5-flash"),
+    model=os.environ.get("BK_CYMBAL_MODEL", "gemini-3-flash-preview"),
     description="Cymbal's front-desk agent: live order lookups plus delegated analytics.",
     instruction=(
         "You are the Cymbal concierge.\n"

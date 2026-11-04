@@ -48,10 +48,10 @@ tunnel on localhost:5432.
 - All configuration comes from environment variables:
   `PROJECT_ID` (bootkon's canonical project var — use this, not
   `GOOGLE_CLOUD_PROJECT`), `GOOGLE_GENAI_USE_VERTEXAI`, `GOOGLE_CLOUD_LOCATION`,
-  `BK_CYMBAL_MODEL` (default `gemini-2.5-flash`), `BK_DATA_AGENT_ID`,
+  `BK_CYMBAL_MODEL` (default `gemini-3-flash-preview`), `BK_DATA_AGENT_ID`,
   `BK_CYMBAL_DB_HOST`/`BK_CYMBAL_DB_PORT`, `BK_DB_PASSWORD`. (The Vertex SDK and
   agy read `GOOGLE_CLOUD_PROJECT`, which Cloud Shell provides = `PROJECT_ID`.)
   Never create config files and never hardcode credentials.
-- Read the model as `os.environ.get("BK_CYMBAL_MODEL", "gemini-2.5-flash")`.
+- Read the model as `os.environ.get("BK_CYMBAL_MODEL", "gemini-3-flash-preview")`.
 - Keep tools small and readable; docstrings are the tool documentation the
   model reasons over.
