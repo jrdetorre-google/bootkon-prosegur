@@ -1,31 +1,36 @@
-## Lab 5: The BigQuery Data Agent
+## Lab 5: El Agente Conversacional de Datos en BigQuery (BigQuery Data Agent)
 
 <walkthrough-tutorial-duration duration="20"></walkthrough-tutorial-duration>
 {{ author('Fabian Hirschmann', 'https://linkedin.com/in/fhirschmann') }}
 <walkthrough-tutorial-difficulty difficulty="2"></walkthrough-tutorial-difficulty>
 <bootkon-cloud-shell-note/>
 
-Time for the first agent. **Conversational analytics data agents** live inside BigQuery: you point one at your governed gold tables, give it context, and business users chat with the data in natural language — the agent writes and runs the SQL. In Lab 6 this same agent becomes a *service* that other agents call over A2A, so make it good.
+Ha llegado el momento de crear nuestro primer agente de negocio. Los **Conversational Analytics Data Agents** viven de forma nativa dentro de **BigQuery**: los conectas a tus tablas gobernadas de la capa *gold*, les proporcionas contexto de negocio y los usuarios pueden conversar con los datos en lenguaje natural mientras el agente genera, ejecuta y explica el SQL por debajo. Además, en el Lab 6 este mismo agente se convertirá en un *servicio* al que otros agentes invocarán mediante el protocolo **A2A**.
 
-Note the payoff of your work so far: the agent will only ever see the **gold** layer — cleaned by your silver models, quality-scanned, PII-tagged, and documented. Grounded agents start with governed data.
+Observa cómo encaja todo el trabajo que has realizado en los laboratorios anteriores: el agente solo tendrá acceso a la capa **gold** — cuyos datos ya han sido limpiados y validados por tus modelos *silver*, auditados en calidad, protegidos frente a fugas de *PII* y documentados en el catálogo. Los agentes fiables empiezan siempre por datos gobernados.
 
-### About data agents
+### Acerca de los BigQuery Data Agents
 
-A conversational analytics **data agent** bundles three things: the *knowledge sources* it may query (your gold tables), *context* that teaches it your business language (the system instructions you are about to write), and *verified queries* — blessed question/SQL pairs it prefers over improvising. When a user asks a question, Gemini translates it into SQL against exactly those sources, runs it as a regular BigQuery job — so IAM and your column-level security from Lab 4 fully apply — and summarizes the result, showing its SQL as it goes. And because the underlying **Conversational Analytics API** is GA, a *published* agent is not just a console toy: it is a callable resource with its own IAM — which is precisely what Lab 6 exploits.
+Un **Data Agent** de *Conversational Analytics* combina tres elementos fundamentales:
+1. **Knowledge sources**: las tablas o vistas que está autorizado a consultar (nuestras tres tablas de `cymbal_gold`).
+2. **Context (System instructions)**: las instrucciones semánticas que le enseñan el lenguaje de tu negocio (sinónimos, métricas oficiales, agrupaciones por defecto y reglas de formato).
+3. **Verified queries**: pares de *pregunta en lenguaje natural + consulta SQL certificada* que el agente prioriza como referencia exacta en lugar de improvisar.
 
-Learn more:
+Cuando un usuario formula una pregunta, **Gemini** la traduce a SQL sobre esas fuentes de conocimiento, ejecuta la consulta como un trabajo estándar de **BigQuery** — respetando íntegramente los permisos de IAM y el *Column-Level Security* configurado en el Lab 4 — y resume la respuesta mostrando la consulta SQL empleada. Y dado que la **Conversational Analytics API** está en disponibilidad general (*GA*), cuando publicas el agente no se queda encerrado en la consola web: se convierte en un recurso invocable por API con su propio control de acceso IAM, que es exactamente lo que aprovecharemos en el Lab 6.
+
+Para saber más:
 - [Create and use data agents in BigQuery](https://docs.cloud.google.com/bigquery/docs/create-data-agents)
 - [Conversational Analytics API](https://docs.cloud.google.com/gemini/data-agents/conversational-analytics-api/overview)
 
-### Draft the instructions with agy
+### Redacta las instrucciones del agente con `agy`
 
-A data agent is only as good as its context. That context is derived from your schemas — authoring work, so it goes to agy. Run this in a terminal (non-interactive mode; the prompt is also in <walkthrough-editor-open-file filePath="content/agenticdata/src/prompts.md">prompts.md</walkthrough-editor-open-file>):
+Un *Data Agent* es tan bueno como el contexto semántico que le des. Como ese contexto se deriva directamente de los esquemas de tus tablas en `cymbal_gold`, vamos a pedirle a `agy` que inspeccione los esquemas en BigQuery y redacte las instrucciones óptimas. Ejecuta este comando en tu terminal (en modo no interactivo `-p`; el prompt también está disponible en <walkthrough-editor-open-file filePath="content/agenticdata/src/prompts.md">prompts.md</walkthrough-editor-open-file>):
 
 ```bash
 agy -p "Read the table schemas: bq show --schema {{ PROJECT_ID }}:cymbal_gold.fct_daily_revenue ; bq show --schema {{ PROJECT_ID }}:cymbal_gold.dim_customer_360 ; bq show --schema {{ PROJECT_ID }}:cymbal_gold.fct_product_performance. Then draft system instructions for a BigQuery conversational data agent over these three tables: synonyms business users might use (revenue, sales, LTV, best sellers), which table answers which kind of question, default groupings (order_date, currency, category), and columns to exclude from summaries (email). Output only the instructions text."
 ```
 
-Review the output — you are about to make it the agent's world-view. A solid baseline, if you prefer to use it directly or to compare:
+Revisa el texto generado por `agy`. Si prefieres utilizar directamente una plantilla base probada (o compararla con la propuesta de `agy`), aquí tienes la referencia:
 
 ```
 Tables and their roles:
@@ -40,19 +45,19 @@ Rules:
 - Data freshness: near real time via CDC + Dataform runs; mention the latest order_date when answering trend questions.
 ```
 
-### Create the agent
+### Crear el Data Agent en la consola de BigQuery
 
-1. Go to the [BigQuery Console](https://console.cloud.google.com/bigquery).
-2. Expand <walkthrough-spotlight-pointer locator="semantic({treeitem 'Toggle node {{ PROJECT_ID }}'} {button 'Toggle node'})">{{ PROJECT_ID }}</walkthrough-spotlight-pointer> and click <walkthrough-spotlight-pointer locator="text('Agents')">Agents</walkthrough-spotlight-pointer>.
-3. Click <walkthrough-spotlight-pointer locator="semantic({button 'Create agent'})">Create agent</walkthrough-spotlight-pointer>.
-4. Name it ``cymbal-data-agent`` — Lab 6 refers to it by exactly this name — and add a description like *"Analytics over Cymbal's gold layer"*.
-5. Set the region to **GLOBAL** (or ``global``) — the Conversational Analytics API used in Lab 6 routes to `locations/global`.
-6. Click *Add Source* and select the three gold tables: ``fct_daily_revenue``, ``dim_customer_360``, ``fct_product_performance``.
-7. Paste your instructions (agy's draft, reviewed, or the baseline above) into the instructions box.
+1. Abre la [consola de BigQuery](https://console.cloud.google.com/bigquery).
+2. En el panel izquierdo, despliega tu proyecto <walkthrough-spotlight-pointer locator="semantic({treeitem 'Toggle node {{ PROJECT_ID }}'} {button 'Toggle node'})">{{ PROJECT_ID }}</walkthrough-spotlight-pointer> y haz clic en <walkthrough-spotlight-pointer locator="text('Agents')">Agents</walkthrough-spotlight-pointer>.
+3. Haz clic en <walkthrough-spotlight-pointer locator="semantic({button 'Create agent'})">Create agent</walkthrough-spotlight-pointer>.
+4. Asígnale exactamente el nombre **`cymbal-data-agent`** — es fundamental respetar este nombre porque el código del Lab 6 lo invoca por ese identificador — y añade una descripción como *"Analytics over Cymbal's gold layer"*.
+5. Selecciona la región **GLOBAL** (o ``global``) — la *Conversational Analytics API* que utilizaremos en el Lab 6 enruta las peticiones a `locations/global`.
+6. Haz clic en **Add Source** y selecciona las tres tablas del dataset `cymbal_gold`: ``fct_daily_revenue``, ``dim_customer_360`` y ``fct_product_performance``.
+7. Pega las instrucciones del sistema (el borrador de `agy` o el bloque de referencia anterior) en el cuadro de instrucciones del agente.
 
-### Add a verified query
+### Añade una consulta verificada (Verified Query)
 
-Verified queries are blessed SQL the agent prefers over improvising — your accuracy anchor. Add one for the most common question, total revenue by day:
+Las *verified queries* son consultas SQL certificadas que el agente toma como patrón oficial ante preguntas recurrentes de negocio. Añade una para la pregunta más habitual (los ingresos diarios por divisa):
 
 ```sql
 SELECT order_date, currency, SUM(gross_revenue) AS revenue
@@ -61,23 +66,23 @@ GROUP BY order_date, currency
 ORDER BY order_date DESC
 ```
 
-with the natural-language question: ``What was our revenue by day?``
+asociándola a la pregunta en lenguaje natural: ``What was our revenue by day?``
 
-### Publish and converse
+### Publica el agente y conversa con tus datos
 
-In the top bar:
-1. Click ``Save``
-2. Then ``Publish`` — publishing is what makes the agent callable via the Conversational Analytics API, which Lab 6 depends on.
+En la barra superior del agente:
+1. Haz clic en **`Save`**.
+2. A continuación, haz clic en **`Publish`** — publicar el agente es lo que lo expone a través de la **Conversational Analytics API**, requisito imprescindible para el Lab 6.
 
-Now click ``Create conversation`` and interrogate your platform. Try these, then improvise:
+Ahora haz clic en **`Create conversation`** y pon a prueba tu plataforma. Puedes probar estas preguntas (en inglés o en español) e improvisar las tuyas propias:
 
-- What was our total revenue in EUR in the last 30 days?
-- Who are our top 10 customers by lifetime value, and which countries are they from?
-- Which product category has the best gross margin?
-- Are there any days with unusually high revenue? What might explain them?
+- `What was our total revenue in EUR in the last 30 days?`
+- `Who are our top 10 customers by lifetime value, and which countries are they from?`
+- `Which product category has the best gross margin?`
+- `Are there any days with unusually high revenue? What might explain them?`
 
-Watch what comes back: the agent shows the SQL it generated against your gold tables. You spent three labs making those tables mean something — this is where it pays off. (Also try asking for customer *emails* — the agent queries gold, where governance applies.)
+Observa las respuestas: el agente muestra la consulta SQL exacta que ha generado y ejecutado contra tus tablas `cymbal_gold`. Todo el trabajo de los tres laboratorios anteriores para limpiar y estructurar el modelo de datos da aquí su fruto. *(Prueba también a pedirle los correos electrónicos de los clientes: comprobarás cómo las reglas del agente y las políticas de gobierno impiden exponer el campo `email`).*
 
-### Success
+### ¡Completado!
 
-🎉 Excellent{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! Cymbal now has a published data agent: natural language in, governed SQL out, grounded in the gold layer you built and documented. One agent down — in the finale, it gets a colleague. 🤖
+🎉 ¡Excelente{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! Cymbal cuenta ya con un **BigQuery Data Agent** publicado: recibe preguntas en lenguaje natural y devuelve respuestas analíticas precisas basadas en SQL gobernado sobre la capa *gold*. Ya tenemos nuestro primer agente; en el laboratorio final le daremos un compañero operacional para trabajar en equipo mediante **A2A**. 🤖

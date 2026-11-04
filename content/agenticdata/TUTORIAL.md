@@ -1,53 +1,52 @@
 <walkthrough-metadata>
-  <meta name="title" content="Agentic Data Bootkon" />
-  <meta name="description" content="Build Cymbal's agentic data platform: Cloud SQL CDC into BigQuery with Datastream, an agy-authored bronze/silver/gold Dataform pipeline, Knowledge Catalog governance, a BigQuery data agent, and an ADK multi-agent finale over the A2A protocol." />
-  <meta name="keywords" content="data, ai, agents, bigquery, datastream, cloudsql, dataform, dataplex, adk, a2a" />
+  <meta name="title" content="Agentic Data Bootkon para Prosegur" />
+  <meta name="description" content="Construye una plataforma de datos agéntica de extremo a extremo en Google Cloud: replicación CDC de Cloud SQL a BigQuery con Datastream, pipeline Medallion bronze/silver/gold en Dataform asistido por agy, gobierno con Knowledge Catalog, un Data Agent en BigQuery y un sistema multi-agente ADK sobre el protocolo A2A." />
+  <meta name="keywords" content="data, ai, agents, bigquery, datastream, cloudsql, dataform, dataplex, adk, a2a, prosegur" />
   <meta name="component_id" content="1734803" />
 </walkthrough-metadata>
 
 
-# Agentic Data Bootkon
+# Agentic Data Bootkon para Prosegur
 
 <walkthrough-tutorial-duration duration="15"></walkthrough-tutorial-duration>
-Author: <a href="https://linkedin.com/in/fhirschmann">Fabian Hirschmann</a>
+Author: <a href="https://linkedin.com/in/fhirschmann">Fabian Hirschmann</a> · Adaptado para Prosegur
 <walkthrough-tutorial-difficulty difficulty="2"></walkthrough-tutorial-difficulty>
 
 
-## Introduction
+## Introducción
 
-{% if MY_NAME %}Hi **{{ MY_NAME }}! 👋** {% endif %}Welcome to Agentic Data Bootkon. We're delighted to have you! This sidebar contains parts of the labs you will work through. Before we get started, let's set up a few things:
+{% if MY_NAME %}¡Hola **{{ MY_NAME }}! 👋** {% endif %}Te damos la bienvenida a **Agentic Data Bootkon para Prosegur**. ¡Estamos encantados de contar contigo hoy! En este panel lateral encontrarás la guía interactiva paso a paso de todos los laboratorios que vamos a realizar. Antes de empezar, verifiquemos un par de detalles rápidos:
 
-### Working with labs
+### Cómo trabajar con los laboratorios
 
-You can insert commands into the terminal using the following button on top of each code line in the tutorial:
-<walkthrough-cloud-shell-icon></walkthrough-cloud-shell-icon>. The button will automatically open the terminal.
-Please make sure you are using the terminal of the IDE.
+Puedes insertar cualquier bloque de comandos directamente en tu terminal pulsando el icono situado en la esquina superior derecha de cada bloque de código:
+<walkthrough-cloud-shell-icon></walkthrough-cloud-shell-icon>. Ese botón pegará el comando automáticamente en la terminal activa.
+Asegúrate siempre de estar utilizando la terminal integrada del IDE.
 
-Let's try:
+Vamos a probarlo:
 
 ```bash
 echo "Lets go, Cymbal"
 ```
 
-Execute by pressing the return key in the terminal that has been opened in the lower part of your screen.
+Pulsa `Enter` en la terminal de la parte inferior de tu pantalla para ejecutarlo.
 
-### Check your environment
+### Comprueba tu entorno
 
-The setup command you pasted has already configured everything. Let's verify it:
+El comando de inicialización que acabas de pegar ya ha configurado tu entorno automáticamente. Comprueba que ambos valores son correctos:
 
-* Your `PROJECT_ID` is `{% if PROJECT_ID == "" %}None{% else %}{{ PROJECT_ID }}{% endif %}`
+* Tu `PROJECT_ID` es `{% if PROJECT_ID == "" %}None{% else %}{{ PROJECT_ID }}{% endif %}`
 
-* Your `GCP_USERNAME` is `{% if GCP_USERNAME == "" %}None{% else %}{{ GCP_USERNAME }}{% endif %}`
+* Tu `GCP_USERNAME` es `{% if GCP_USERNAME == "" %}None{% else %}{{ GCP_USERNAME }}{% endif %}`
 
-If both are correct, you are done — press the `START` button below to get started!
-(Tip: if you ever close this tutorial or the editor, type `bk-start` in the
-terminal to reopen them.)
+Si ambos valores son correctos, ¡ya está todo listo! Pulsa el botón **`START`** (abajo a la derecha) para comenzar con el Lab 1.
+*(Consejo: si en algún momento cierras por error este panel de tutorial o el editor, escribe `bk-start` en la terminal para volver a abrirlos).*
 
-If a value is wrong or shows `None`: open `vars.local.sh`
-<walkthrough-editor-open-file filePath="vars.local.sh">by clicking here</walkthrough-editor-open-file>,
-fix the value (e.g. point `PROJECT_ID` at your event project), and save.
+Si alguno de los valores es incorrecto o muestra `None`: abre el archivo `vars.local.sh`
+<walkthrough-editor-open-file filePath="vars.local.sh">haciendo clic aquí</walkthrough-editor-open-file>,
+corrige el valor (por ejemplo, asignando a `PROJECT_ID` el ID de tu proyecto del evento) y guarda el archivo.
 
-Then reload the environment and refresh the values shown on this page:
+Después, recarga el entorno y actualiza los valores mostrados en esta página ejecutando:
 
 ```bash
 . bk && bk-start
@@ -66,13 +65,13 @@ Then reload the environment and refresh the values shown on this page:
 {% include 'agenticdata/labs/6_a2a.md' %}
 
 
-## The end
+## ¡Final completado!
 
-You've made it! Congratulations and thank you for participating in this event.
+¡Lo has conseguido! Enhorabuena y muchas gracias por participar en el **Agentic Data Bootkon para Prosegur**.
 
-### Credits
+### Créditos
 
-The authors of Agentic Data Bootkon are:
+Edición adaptada para **Prosegur** por el equipo de **Google Cloud Iberia**, basada en el stream **Agentic Data Bootkon** creado por:
 - [Fabian Hirschmann](https://www.linkedin.com/in/fhirschmann/) (main author)
 - [Florian Baumert](https://www.linkedin.com/in/florian-baumert/)
 - [Cary Edwards](https://www.linkedin.com/in/cary-edwards-a3a557a6/)

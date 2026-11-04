@@ -1,19 +1,19 @@
-## Lab 1: Environment Setup & Meet Your Co-Engineer
+## Lab 1: Configuración del Entorno y Presentación de tu Co-Ingeniero
 
 <walkthrough-tutorial-duration duration="20"></walkthrough-tutorial-duration>
 {{ author('Fabian Hirschmann', 'https://linkedin.com/in/fhirschmann') }}
 <walkthrough-tutorial-difficulty difficulty="1"></walkthrough-tutorial-difficulty>
 <bootkon-cloud-shell-note/>
 
-Welcome to Cymbal{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! By 17:00 you will have built a complete agentic data platform: a live operational database, change-data-capture into BigQuery, a governed bronze→silver→gold architecture, and two AI agents talking to each other over **A2A** — the open *agent-to-agent* protocol that lets AI agents call each other the way HTTP lets services do it. Don't worry if that's new to you: the finale lab explains and builds it step by step.
+¡Bienvenido al laboratorio de Cymbal{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! Al finalizar la sesión habrás construido una **agentic data platform** completa: una base de datos operacional en vivo, replicación *change-data-capture (CDC)* hacia **BigQuery**, una arquitectura *medallion* (*bronze → silver → gold*) gobernada, y dos agentes de IA conversando entre sí mediante **A2A** — el protocolo abierto *agent-to-agent* que permite a los agentes de IA invocarse mutuamente del mismo modo que HTTP conecta microservicios. Si es la primera vez que trabajas con estos componentes, no te preocupes: los construiremos paso a paso.
 
-In this lab you will enable services, run the bootstrap, take ownership of your already-provisioned production database, and meet **Antigravity CLI (`agy`)** — your co-engineer for the afternoon.
+En este primer laboratorio verificarás la activación de servicios, ejecutarás el script de *bootstrap*, tomarás posesión de tu base de datos de producción pre-aprovisionada y conocerás a **Antigravity CLI (`agy`)** — tu co-ingeniero de IA durante toda la jornada.
 
-One rule for today: **you** run the infrastructure commands, **agy** writes code and configs, and the **console** is where you verify what happened.
+La regla de oro para hoy es sencilla: **tú** ejecutas los comandos de infraestructura, **`agy`** escribe el código y las configuraciones, y **Google Cloud Console** es donde verificas lo que ha ocurrido.
 
-Along the way you will spot **Prefer the console?** notes: optional UI routes for when you'd rather click than type — the one licensed exception to the rule above. Each replaces the command right above it, so take one route or the other; both roads lead to Cymbal.
+A lo largo de algunos pasos verás notas opcionales para realizar acciones desde la consola gráfica cuando prefieras hacer clic en lugar de usar la terminal: ambas rutas llevan exactamente al mismo resultado.
 
-### Enable services
+### Habilitar servicios
 
 <walkthrough-enable-apis apis=
   "sqladmin.googleapis.com,
@@ -38,107 +38,107 @@ Along the way you will spot **Prefer the console?** notes: optional UI routes fo
 </walkthrough-enable-apis>
 
 {% if ON_ARGOLIS %}
-### Prepare your project (Argolis)
+### Prepara tu proyecto (Argolis)
 
-At an event, the organizers provision every project days ahead — on Argolis (Google internal) you are your own organizer, so run the prep yourself first. It enables the stream APIs, grants your roles, sets up the Datastream service agent and its private connection, creates the data-quality service account, and builds the network path and the Cloud SQL instance (idempotent, safe to re-run; expect 15–25 minutes):
+En un evento guiado, los organizadores pre-aprovisionan todos los proyectos con antelación; si estás ejecutando este laboratorio por tu cuenta en **Argolis** (entorno interno de Google), actúa como tu propio organizador ejecutando primero el script de preparación. Habilita las APIs del stream, asigna los roles de IAM necesarios, configura el *service agent* de **Datastream** y su *private connection*, crea la *service account* de calidad de datos y despliega la red y la instancia de **Cloud SQL** (es idempotente y seguro de re-ejecutar; tarda entre 15 y 25 minutos):
 
 ```bash
 content/agenticdata/provisioning/bk-prep-project
 ```
 
-❗ Argolis organization policies (for example `constraints/compute.requireOsLogin`, `constraints/compute.requireShieldedVm`, or SQL constraints) may block the VM or instance creation inside the prep. If it fails with a policy error, disable the constraint under IAM & Admin → Organization Policies and run the prep again.
+❗ Algunas políticas de organización de Argolis (por ejemplo `constraints/compute.requireOsLogin`, `constraints/compute.requireShieldedVm` o restricciones de Cloud SQL) pueden bloquear la creación de la VM o de la instancia. Si falla por un error de política, desactiva la restricción en *IAM & Admin → Organization Policies* y vuelve a ejecutar el comando.
 
-Once it finished, reload the environment once — your jump VM now exists, and this brings up the database tunnel that the labs rely on:
+Una vez finalizado, recarga el entorno una vez — tu *jump VM* ya existe y esto levantará el túnel hacia la base de datos que utilizan los laboratorios:
 
 ```bash
 . bk
 ```
 {% endif %}
 
-### Run the bootstrap
+### Ejecutar el bootstrap
 
-Execute the following script. It installs Python dependencies and the Dataform CLI (you'll meet it in Lab 3) and pre-configures your AI co-engineer. (Everything project-bound — APIs, IAM roles, service accounts — {% if ON_ARGOLIS %}was covered by the prep step above{% else %}was already provisioned for your event project ahead of time; that's why the API step above was instantly green{% endif %}.) It runs for about two minutes — you can inspect <walkthrough-editor-open-file filePath="content/agenticdata/bk-bootstrap">bk-bootstrap</walkthrough-editor-open-file> while it works:
+Ejecuta el siguiente script. Instalará las dependencias de Python y la **Dataform CLI** (que utilizarás en el Lab 3) y dejará pre-configurado tu co-ingeniero de IA. (Todo lo vinculado al proyecto — APIs, roles de IAM y *service accounts* — {% if ON_ARGOLIS %}ya ha quedado cubierto en el paso anterior{% else %}ya ha sido pre-aprovisionado en tu proyecto del evento antes de empezar; por eso el paso de activación de APIs superior se ha puesto en verde al instante{% endif %}). Tarda aproximadamente dos minutos; mientras se ejecuta puedes echar un vistazo a <walkthrough-editor-open-file filePath="content/agenticdata/bk-bootstrap">bk-bootstrap</walkthrough-editor-open-file> en el editor:
 
 ```bash
 content/agenticdata/bk-bootstrap
 ```
 
-Your database passwords were already generated during setup and live in `vars.local.sh` — the commands below use them as `$BK_DB_PASSWORD`, and **every terminal picks them up automatically**.
+Las contraseñas de tu base de datos ya se han generado automáticamente durante la inicialización y están guardadas en `vars.local.sh` — los comandos siguientes las utilizan mediante la variable `$BK_DB_PASSWORD`, y **cualquier pestaña de terminal que abras las carga automáticamente**.
 
-### The network path
+### La arquitectura de red privada
 
-Our database will have **no public IP**. Instead, Datastream will reach it through Private Service Connect (PSC) — and the network for that is already in your project{% if ON_ARGOLIS %} (created by the prep step above){% endif %}: the VPC `cymbal-vpc` with subnet `cymbal-subnet` (`10.10.0.0/24`), the address `10.10.0.5` — the PSC endpoint that **is** your database's door — the network attachment `cymbal-attachment` with Datastream's private connection `cymbal-psc` already plugged into it, and a tiny jump VM (`cymbal-jump`) you will meet in Lab 2. Take a look at [VPC networks](https://console.cloud.google.com/networking/networks/list) to see the pieces.
+Nuestra base de datos operacional **no tiene IP pública**. En su lugar, **Datastream** se conectará a ella a través de **Private Service Connect (PSC)** — y toda esa topología de red ya está desplegada en tu proyecto{% if ON_ARGOLIS %} (creada por el paso de preparación anterior){% endif %}: la VPC `cymbal-vpc` con la subred `cymbal-subnet` (`10.10.0.0/24`), la dirección IP interna `10.10.0.5` — el *PSC endpoint* que actúa como puerta de entrada privada a tu base de datos —, el *network attachment* `cymbal-attachment` con la conexión privada de Datastream `cymbal-psc` ya conectada a él, y una pequeña *jump VM* (`cymbal-jump`) que utilizaremos en el Lab 2. Puedes abrir [VPC networks](https://console.cloud.google.com/networking/networks/list) para inspeccionar estos componentes en la consola.
 
-So what is this setup? **Private Service Connect** is Google Cloud's way of exposing a service across VPC boundaries without peering entire networks or using public IPs: the producer (here: your Cloud SQL instance) publishes a *service attachment*, and consumers plug an *endpoint* into it — traffic stays on Google's backbone, and each side only sees the single socket it was given. The **network attachment** is the reverse construct: it lets a Google-managed producer (Datastream) place a network interface *into* your VPC. You will connect both halves in Lab 2.
+¿En qué consiste exactamente este diseño? **Private Service Connect (PSC)** es el mecanismo de **Google Cloud** para exponer un servicio a través de distintas redes VPC sin necesidad de hacer *VPC peering* completo ni exponer IPs públicas: el productor del servicio (en este caso, tu instancia de **Cloud SQL**) publica un *service attachment*, y los consumidores conectan un *endpoint* a él — todo el tráfico permanece dentro del *backbone* de Google y cada extremo solo ve el socket específico autorizado. El **network attachment** cumple la función simétrica: permite a un servicio gestionado de Google (**Datastream**) colocar una interfaz de red privada *dentro* de tu VPC. En el Lab 2 uniremos ambas mitades.
 
-Learn more:
+Para saber más:
 - [Private Service Connect](https://docs.cloud.google.com/vpc/docs/private-service-connect)
 - [Network attachments](https://docs.cloud.google.com/vpc/docs/about-network-attachments)
 - [Cloud SQL and Private Service Connect](https://docs.cloud.google.com/sql/docs/postgres/about-private-service-connect)
 
-### Take ownership of your database
+### Toma el control de tu base de datos
 
-Cymbal's production order database is already built: `cymbal-oltp`, PostgreSQL on Cloud SQL — with **logical decoding** enabled at creation time (Postgres emits every committed change in logical form; the prerequisite for CDC, set at birth so the instance never needs a flag-change restart), **Private Service Connect** instead of a public IP (its endpoint is the `10.10.0.5` from above), and a deliberately small machine (`db-custom-1-3840`) — CDC reads the log, it does not stress the database.
+La base de datos de producción de pedidos de Cymbal ya está creada: se llama `cymbal-oltp`, corre sobre **Cloud SQL for PostgreSQL** y cuenta con **logical decoding** habilitado desde su creación (PostgreSQL emite cada transacción confirmada en formato lógico, requisito indispensable para *CDC*), conectividad exclusiva por **Private Service Connect** (su *endpoint* es la IP `10.10.0.5` anterior) y un tamaño de máquina contenido (`db-custom-1-3840`), ya que la lectura del log de *CDC* apenas añade carga a la base de datos.
 
-It was parked **stopped** until the event, and your bootkon setup already sent the wake-up call in the background — by now it should be running. It came with a throwaway root password, so make it yours — set the `postgres` password to your generated `$BK_DB_PASSWORD`:
+La instancia permanecía aparcada en estado **STOPPED** hasta el inicio del evento, y el script de arranque de Bootkon ya ha enviado la orden de encendido en segundo plano, por lo que ya debería estar activa (`RUNNABLE`). Como se aprovisionó con una contraseña temporal desechable, asígnale ahora al usuario `postgres` tu contraseña generada `$BK_DB_PASSWORD`:
 
 ```bash
 gcloud sql users set-password postgres --instance=cymbal-oltp --password=$BK_DB_PASSWORD
 ```
 
-❗ Only if this fails with *"instance is not running"*: the background wake-up hasn't finished (or was missed) — start the instance yourself (takes a minute or two), then re-run the command above:
+❗ Solo si este comando devuelve un error indicando *"instance is not running"*: significa que el encendido en segundo plano aún no ha terminado. Enciende la instancia manualmente (tarda un par de minutos) y después vuelve a ejecutar el comando `set-password` anterior:
 
 ```bash
 gcloud sql instances patch cymbal-oltp --activation-policy=ALWAYS
 ```
 
-Learn more:
+Para saber más:
 - [Set up logical replication on Cloud SQL](https://docs.cloud.google.com/sql/docs/postgres/replication/configure-logical-replication)
 
-### The seed data
+### Los datos semilla (Seed Data)
 
-Cymbal's order history is **synthetic and deterministic**: a seeded generator produces it, so every participant works with identical rows — including some deliberately broken ones you will meet again in Lab 3. Have a look at <walkthrough-editor-open-file filePath="content/agenticdata/src/datagen/generate.py">generate.py</walkthrough-editor-open-file> — note the *planted flaws* section at the top.
+El histórico de pedidos de Cymbal es **sintético y determinista**: un generador con semilla fija lo produce para que todos los asistentes trabajen exactamente con las mismas filas — incluyendo errores de calidad introducidos a propósito que limpiaremos en el Lab 3. Abre <walkthrough-editor-open-file filePath="content/agenticdata/src/datagen/generate.py">generate.py</walkthrough-editor-open-file> y observa la sección *planted flaws* al principio del archivo.
 
-The six CSVs were staged in your bucket when the project was provisioned (and loaded into the database from there). Verify they are still around:
+Los seis archivos CSV se depositaron en tu bucket de **Cloud Storage** durante el aprovisionamiento del proyecto (y se importaron desde ahí a la base de datos). Comprueba que están en tu bucket:
 
 ```bash
 gcloud storage ls -l gs://{{ PROJECT_ID }}-bucket/seed/
 ```
 
-Six files, about 111 MB in total — half a million orders plus the customers, products, order items, payments and reviews around them.
+Verás seis ficheros (~111 MB en total): medio millón de pedidos junto con sus clientes, productos, líneas de pedido, pagos y reseñas.
 
-### Meet your co-engineer
+### Conoce a tu co-ingeniero: Antigravity CLI (`agy`)
 
-`agy` (Antigravity CLI) is already installed in Cloud Shell, and `bk-bootstrap` pre-configured its basics (project, location, trusted workshop folders). One thing it cannot do for you is sign in — that is a one-time step you do now. **Maximize the terminal first** so the whole sign-in dialog fits on screen, then start agy from the repository root (you are already there):
+`agy` (**Antigravity CLI**) ya viene instalado en **Cloud Shell**, y `bk-bootstrap` ha pre-configurado sus ajustes básicos (proyecto, región y carpetas de confianza del taller). Lo único que debes hacer una sola vez es iniciar sesión. **Maximiza primero el panel de la terminal** para que el cuadro de diálogo de inicio de sesión se vea completo en pantalla y lanza `agy` desde la raíz del repositorio (donde ya te encuentras):
 
 ```bash
 agy
 ```
 
-On the first run, agy asks how you want to sign in — choose the **Google Cloud project** option. agy will tell you your account has **no license for Gemini Enterprise** — that is expected, we don't use Gemini Enterprise today: if it asks for a project, enter your event project ID (it may already be pre-filled from the configuration):
+En su primera ejecución, `agy` te preguntará cómo quieres autenticarte: elige la opción **Google Cloud project**. `agy` te informará de que tu cuenta **no tiene licencia de Gemini Enterprise** — es totalmente normal, hoy utilizamos directamente tu proyecto de GCP: si te pide el ID del proyecto, introduce el `PROJECT_ID` de tu evento (puede que ya aparezca pre-rellenado):
 
 ```bash
 {{ PROJECT_ID }}
 ```
 
-If a login URL appears, open it with **Ctrl+Click** (Cmd+Click on a Mac), sign in as `{{ GCP_USERNAME }}`, and paste the confirmation code into the token field back in the terminal. Accept the Terms of Service if prompted. Every later `agy` start lands straight at the prompt — restore the terminal to its usual size once you are signed in.
+Si aparece una URL de autenticación, ábrela con **Ctrl+Clic** (o **Cmd+Clic** en Mac), inicia sesión con tu cuenta `{{ GCP_USERNAME }}` y pega el código de confirmación de vuelta en el campo de token de la terminal. Acepta los *Terms of Service* si se solicita. A partir de este momento, cada vez que ejecutes `agy` entrarás directamente al prompt interactivo — ya puedes devolver el panel de la terminal a su tamaño habitual.
 
-The everyday commands agy needs today (file exploration, `dataform compile`, Python checks) are **pre-approved**, so authoring flows uninterrupted — but anything that would touch your cloud resources still asks you first. That split is deliberate: agy types, you review (with `/diff`), and the cloud stays your call.
+Los comandos cotidianos que `agy` necesita hoy (explorar ficheros, ejecutar `dataform compile`, validaciones con Python) están **pre-aprobados**, para que la generación de código fluya sin interrupciones; en cambio, cualquier comando que toque recursos reales de tu nube te pedirá confirmación antes de ejecutarse. Ese reparto es deliberado: `agy` escribe el código, tú lo revisas (con `/diff`), y las operaciones en la nube siempre están bajo tu mando.
 
-### Let agy explain what just happened
+### Pide a `agy` que te explique qué hace el bootstrap
 
-Your first prompt. Paste this into agy:
+Vamos a enviar tu primer prompt. Copia y pega este texto dentro de `agy`:
 
 ```bash
 What does content/agenticdata/bk-bootstrap do? Explain how the seed data generation stays deterministic and why identical data matters for this workshop.
 ```
 
-Read the answer — this is the pattern for the whole afternoon: you stay in command, agy does the reading and writing, and you verify.
+Lee su respuesta — esta será la dinámica durante toda la mañana: tú diriges la arquitectura, `agy` analiza y escribe el código, y tú verificas el resultado.
 
-### Verify in the console
+### Verifica en la consola
 
-Let's look at your database. Open [Cloud SQL instances](https://console.cloud.google.com/sql/instances) and find <walkthrough-spotlight-pointer locator="text('cymbal-oltp')">cymbal-oltp</walkthrough-spotlight-pointer>: running, with **Private service connect** as its connectivity — and no public IP anywhere.
+Echemos un vistazo a tu base de datos en la interfaz gráfica. Abre [Cloud SQL instances](https://console.cloud.google.com/sql/instances) y localiza <walkthrough-spotlight-pointer locator="text('cymbal-oltp')">cymbal-oltp</walkthrough-spotlight-pointer>: verás que está en ejecución, con **Private service connect** como método de conectividad y sin ninguna IP pública expuesta.
 
-### Success
+### ¡Completado!
 
-🎉 Congratulations{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! Your project has IAM sorted, Datastream already plugged into your VPC, a production database answering to **your** password, half a million synthetic orders staged in Cloud Storage, and an AI co-engineer standing by in your terminal. On to the data! 🚀
+🎉 ¡Enhorabuena{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! Tu proyecto ya tiene los permisos de IAM listos, **Datastream** conectado de forma privada a tu VPC, una base de datos de producción respondiendo con **tu** contraseña, medio millón de pedidos sintéticos preparados en **Cloud Storage**, y un co-ingeniero de IA esperando órdenes en tu terminal. ¡Vamos a por los datos en tiempo real! 🚀

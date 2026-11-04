@@ -1,4 +1,4 @@
-## Lab 8: The Crystal Ball — Revenue Forecasting with AI.FORECAST and Data Canvas
+## Lab 8: Predicción de Ingresos con `AI.FORECAST` y BigQuery Data Canvas
 
 <walkthrough-tutorial-duration duration="30"></walkthrough-tutorial-duration>
 {{ author('Fabian Hirschmann', 'https://linkedin.com/in/fhirschmann') }}
@@ -6,26 +6,26 @@
 <bootkon-cloud-shell-note/>
 <!-- Optional module: not wired into TUTORIAL.md. Renumber the "Lab N" title to match the event agenda when including. When wiring into TUTORIAL.md: merge src/optional/forecast/prompts.md into src/prompts.md and repoint the prompts.md link in "Materialize the forecast with Dataform". Not yet smoke-tested. -->
 
-So far your platform explains the past. In this lab it starts predicting the future: you forecast Cymbal's daily revenue with a **single SQL function** — `AI.FORECAST`, backed by the **TimesFM** foundation model built into BigQuery — then let agy materialize the forecast as a proper gold mart in your Dataform project, and chart actuals against forecast in a **data canvas** using natural language.
+Hasta ahora tu plataforma explica lo que ya ha ocurrido. En este laboratorio opcional empezará a predecir el futuro: pronosticarás los ingresos diarios de Cymbal con **una sola función SQL** — `AI.FORECAST`, impulsada por el modelo fundacional de series temporales **TimesFM** integrado en **BigQuery** —, pedirás a `agy` que materialice esa predicción como una tabla *gold* dentro de **Dataform**, visualizarás la serie histórica junto a la predicción en **BigQuery Data Canvas** usando lenguaje natural y, finalmente, conectarás esa tabla al **BigQuery Data Agent** del Lab 5.
 
-Before you start: this lab assumes **Labs 1–3 are complete** — the medallion is built and `cymbal_gold.fct_daily_revenue` exists. Work in your main terminal as usual, and leave the simulator (terminal 2) running untouched — everything here reads from BigQuery. The final section additionally needs the published `cymbal-data-agent` from Lab 5; it is clearly marked and skippable if you haven't done that lab.
+Antes de empezar: este laboratorio asume que has completado los **Labs 1 a 3** (`cymbal_gold.fct_daily_revenue` ya existe). La última sección utiliza además el agente `cymbal-data-agent` creado en el Lab 5.
 
-### About TimesFM and AI.FORECAST
+### Acerca de TimesFM y `AI.FORECAST`
 
-**TimesFM** is a foundation model for time series from Google Research, pre-trained on billions of time points — the forecasting equivalent of a pre-trained language model: it predicts new series *zero-shot*, without being trained on your data. BigQuery ML ships it **built in**, exposed through the GA table-valued function **`AI.FORECAST`**: no `CREATE MODEL`, no training job, no endpoint to deploy or manage — you hand it a query and get forecast rows back, accuracy comparable to classic statistical models like ARIMA.
+**TimesFM** es el modelo fundacional para series temporales desarrollado por **Google Research**, pre-entrenado sobre miles de millones de puntos temporales: permite predecir nuevas series en modo *zero-shot*, sin necesidad de entrenar un modelo específico sobre tus datos históricos. **BigQuery ML** lo incorpora de serie a través de la función SQL en disponibilidad general (**GA**) **`AI.FORECAST`**: sin sentencias `CREATE MODEL`, sin tiempos de entrenamiento y sin endpoints que mantener — le pasas una consulta SQL con tu serie temporal y te devuelve directamente las filas pronosticadas con sus intervalos de confianza.
 
-Learn more:
+Para saber más:
 - [The AI.FORECAST function](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-ai-forecast)
 - [The built-in TimesFM model](https://docs.cloud.google.com/bigquery/docs/timesfm-model)
 - [The AI.EVALUATE function](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-ai-evaluate)
 - [The AI.DETECT_ANOMALIES function](https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-ai-detect-anomalies)
 - [BigQuery data canvas](https://docs.cloud.google.com/bigquery/docs/data-canvas)
 
-### Ask for the future
+### Genera tu primera predicción en SQL
 
-How much history do you have to forecast from? Cymbal's seed data spans exactly **540 days** — 1 January 2025 through 24 June 2026 — and `fct_daily_revenue` holds one row per day *per currency*: 5 × 540 = 2,700 rows, plus a few partial rows for whatever the simulator had written by your last `dataform run`. Plenty (TimesFM needs only 3 points to say anything at all, and picks its context window automatically).
+Los datos semilla de Cymbal abarcan **540 días** de histórico (del 1 de enero de 2025 al 24 de junio de 2026), y `fct_daily_revenue` contiene una fila por día y divisa (`5 × 540 = 2.700` filas completas, más las filas del día en curso generadas por el simulador).
 
-Open [BigQuery](https://console.cloud.google.com/bigquery) and run your first forecast — two weeks of EUR revenue:
+Abre [BigQuery](https://console.cloud.google.com/bigquery) y ejecuta tu primera predicción a 14 días vista para los ingresos en euros (`EUR`):
 
 ```sql
 SELECT *
@@ -41,42 +41,40 @@ FROM AI.FORECAST(
 ORDER BY forecast_timestamp
 ```
 
-A word on the arguments: the first is just a query — the series to forecast; `data_col` and `timestamp_col` name the value and time columns; `horizon => 14` asks for 14 points into the future. The `WHERE` clause makes two deliberate choices: **one currency**, because a series that mixes euros and złoty is numeric nonsense (more on that in a minute), and **no current day**, because the simulator is still writing it — a half-finished day would drag the first forecast points down.
+Fíjate en los argumentos: el primero es la subconsulta con la serie temporal; `data_col` y `timestamp_col` indican la métrica y la fecha; y `horizon => 14` solicita 14 días hacia el futuro. Filtramos por una única divisa (`currency = 'EUR'`) y excluimos el día actual incompleto (`order_date < CURRENT_DATE()`) para que un día en curso a medio poblar por el simulador no distorsione la tendencia.
 
-In a few seconds you get exactly 14 rows: `forecast_value` is the median prediction, flanked by `prediction_interval_lower_bound` and `_upper_bound` at the default 95% `confidence_level` (an empty `ai_forecast_status` means all went well). Note where the forecast starts: TimesFM continues the series from where your *data* ends — the day after the last complete day of history — not from today's wall-clock date.
+En pocos segundos obtendrás 14 filas con `forecast_value` (la predicción mediana) acompañada de los límites inferior y superior del intervalo de confianza al 95% (`prediction_interval_lower_bound` y `prediction_interval_upper_bound`).
 
-❗ At a full-room event, a hundred first-ever `AI.FORECAST` calls can land at the same moment. If you see a transient error mentioning quota or rate limits, wait a few seconds and re-run the query — the function is stateless, and nothing is left half-built in your project.
+### Materializa el pronóstico multimoneda con Dataform y `agy`
 
-### Materialize the forecast with Dataform
+Vamos a convertir este pronóstico en una tabla oficial de la capa `cymbal_gold` dentro de tu pipeline de **Dataform**, pronosticando todas las divisas en una sola llamada mediante el parámetro `id_cols => ['currency']` (que indica a **TimesFM** que trate cada divisa como una serie independiente).
 
-Ad-hoc queries convince you; marts serve everyone else — dashboards, colleagues, and (below) your data agent. Let's make the forecast a real gold table, produced by the same pipeline that builds the rest of the medallion. This time the whole table is forecast per currency in one call using `id_cols`, which tells TimesFM to treat each currency as its own independent series — the honest alternative to summing incompatible currencies into one. Writing SQLX is authoring work, so it goes to agy. Change into your Dataform project from Lab 3 and start your co-engineer:
+Ve al directorio de Dataform y arranca `agy`:
 
 ```bash
 cd ~/bootkon/content/agenticdata/src/dataform
 agy
 ```
 
-Then hand over the task (the prompt is also in <walkthrough-editor-open-file filePath="content/agenticdata/src/optional/forecast/prompts.md">prompts.md</walkthrough-editor-open-file>):
+Pásale el siguiente encargo (disponible también en <walkthrough-editor-open-file filePath="content/agenticdata/src/optional/forecast/prompts.md">prompts.md</walkthrough-editor-open-file>):
 
 ```bash
 /goal Create definitions/fct_revenue_forecast.sqlx: a Dataform table in schema "cymbal_gold" carrying exactly one tag, "forecast" (not silver, not gold). It materializes a 14-day daily revenue forecast per currency from ${ref("fct_daily_revenue")} (columns order_date DATE, currency STRING, gross_revenue NUMERIC), excluding the current incomplete day (order_date < CURRENT_DATE()). Use BigQuery's GA table-valued function AI.FORECAST with its exact named arguments: the SELECT as first argument, then data_col => 'gross_revenue', timestamp_col => 'order_date', id_cols => ['currency'], horizon => 14, confidence_level => 0.95. From its output keep currency, forecast_timestamp cast to DATE as forecast_date, and forecast_value, prediction_interval_lower_bound, prediction_interval_upper_bound rounded to 2 decimals as forecast_revenue, lower_bound, upper_bound. Add a table description and column descriptions, then run dataform compile and fix any errors until it compiles cleanly.
 ```
 
-**Review what agy wrote**: open <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform/definitions/fct_revenue_forecast.sqlx">fct_revenue_forecast.sqlx</walkthrough-editor-open-file> and compare with the shipped reference <walkthrough-editor-open-file filePath="content/agenticdata/src/optional/forecast/fct_revenue_forecast.sqlx">in src/optional/forecast</walkthrough-editor-open-file>. If agy went off-script, the reference has your back:
+**Revisa el archivo creado por `agy`**: abre <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform/definitions/fct_revenue_forecast.sqlx">fct_revenue_forecast.sqlx</walkthrough-editor-open-file> y compáralo con la referencia incluida en <walkthrough-editor-open-file filePath="content/agenticdata/src/optional/forecast/fct_revenue_forecast.sqlx">src/optional/forecast</walkthrough-editor-open-file>. Si necesitas usar la referencia directamente, ejecuta:
 
 ```bash
 cp ~/bootkon/content/agenticdata/src/optional/forecast/fct_revenue_forecast.sqlx ~/bootkon/content/agenticdata/src/dataform/definitions/
 ```
 
-Exit agy and build it — the run finishes in well under a minute:
+Sal de `agy` con `/quit` y ejecuta el nuevo tag `forecast` en Dataform:
 
 ```bash
 dataform run --tags forecast
 ```
 
-The tag is the point: the new model carries *only* `forecast`, so your Lab 3 commands — `dataform run --tags silver` and `--tags gold` — still execute exactly what they did before, while the forecast refreshes only when asked. Re-run it any time; since bronze keeps moving and gold is one `dataform run` away, tomorrow's forecast can always ride on today's data.
-
-Trust, but verify — back in the [BigQuery editor](https://console.cloud.google.com/bigquery):
+Comprueba en el [editor de BigQuery](https://console.cloud.google.com/bigquery) que la tabla `fct_revenue_forecast` se ha materializado con las 5 divisas × 14 días = 70 filas:
 
 ```sql
 SELECT currency, COUNT(*) AS days, MIN(forecast_date) AS first_day, MAX(forecast_date) AS last_day
@@ -85,25 +83,23 @@ GROUP BY currency
 ORDER BY currency
 ```
 
-Five currencies, 14 days each — 70 rows of future, starting the day after your history ends.
+### Visualiza el histórico más la predicción en BigQuery Data Canvas
 
-### Chart it in a data canvas
+**Data Canvas** es el lienzo visual asistido por **Gemini** dentro de **BigQuery** para combinar tablas, consultas en lenguaje natural y gráficos interactivos.
 
-Numbers convince analysts; lines convince everyone. **Data canvas** is BigQuery's Gemini-powered analysis surface: you assemble tables, queries, and charts as connected nodes on a canvas and drive them with natural language.
-
-In [BigQuery](https://console.cloud.google.com/bigquery), next to the **SQL query** button in the editor tab bar, click the **Create new** arrow, select **AI and knowledge**, then <walkthrough-spotlight-pointer locator="text('Data canvas')">Data canvas</walkthrough-spotlight-pointer>. Click **Search for data** and search in plain words:
+En [BigQuery](https://console.cloud.google.com/bigquery), junto al botón **SQL query** de la barra superior, abre el desplegable **Create new** → **AI and knowledge** → <walkthrough-spotlight-pointer locator="text('Data canvas')">Data canvas</walkthrough-spotlight-pointer>. Pulsa **Search for data** y busca:
 
 ```
 cymbal revenue
 ```
 
-The search reads the catalog's metadata (if you did Lab 4, that's the metadata you curated). Add both `fct_daily_revenue` and `fct_revenue_forecast` to the canvas. Then, on the `fct_daily_revenue` table node, click **Query** and describe what you want instead of writing it:
+Añade al lienzo tanto `fct_daily_revenue` como `fct_revenue_forecast`. Después, sobre el nodo `fct_daily_revenue`, haz clic en **Query** y pide en lenguaje natural:
 
 ```
 One row per day and series: the last 60 complete days of EUR actuals from fct_daily_revenue (order_date as day, gross_revenue as revenue, series = 'actual', excluding the current date), combined with all EUR rows of cymbal_gold.fct_revenue_forecast (forecast_date as day, forecast_revenue as revenue, series = 'forecast').
 ```
 
-Gemini writes the SQL — **read it before you run it**, same as you review agy all day. If it took a wrong turn, replace the node's SQL with the known-good version:
+Revisa el SQL generado por Gemini (o pega directamente esta consulta equivalente):
 
 ```sql
 WITH actuals AS (
@@ -121,47 +117,44 @@ WHERE currency = 'EUR'
 ORDER BY day
 ```
 
-(Why anchor the 60-day window on the *data's* `MAX(order_date)` rather than on today? Same lesson as the warm-up: the seed history ends on 24 June 2026, so a window counted back from today's date could miss the actuals entirely.)
-
-Run the node, then click **Visualize** and pick the line chart. You can keep refining conversationally — try:
+Ejecuta el nodo, pulsa **Visualize** y elige un gráfico de líneas (*Line chart*):
 
 ```
 Line chart over day, one line per series, forecast in a different color
 ```
 
-Look at the seam where the two series meet: the forecast picks up the level and the weekly rhythm of the actuals and carries them forward, with no model training anywhere in sight. Export the chart as a PNG if you want a souvenir.
+Verás cómo la curva de predicción de **TimesFM** recoge el nivel y la estacionalidad semanal de los últimos 60 días reales y los proyecta 14 días hacia delante sin haber tenido que entrenar ningún modelo.
 
-❗ Data canvas is a **Gemini in BigQuery** feature, and some sandboxes gate it by org policy. If **Data canvas** doesn't appear under *Create new*, you lose the conversation but not the picture: run the known-good query above in the plain SQL editor and open the <walkthrough-spotlight-pointer locator="semantic({tab 'Visualization'})">Visualization</walkthrough-spotlight-pointer> tab (formerly *Chart*) in the query results pane — a line chart over `day` shows the same seam.
+❗ **Data Canvas** es una funcionalidad de **Gemini in BigQuery**; si en algún entorno estuviera restringido por política de organización, puedes ejecutar directamente la consulta SQL anterior en el editor estándar de BigQuery y abrir la pestaña <walkthrough-spotlight-pointer locator="semantic({tab 'Visualization'})">Visualization</walkthrough-spotlight-pointer> en el panel de resultados para visualizar el mismo gráfico de líneas.
 
-### Teach the data agent to see the future
+### Enseña a tu BigQuery Data Agent a responder sobre el futuro
 
-**If you completed Lab 5**, your `cymbal-data-agent` is about to get an upgrade — otherwise skip ahead to the end of the lab; nothing below is needed there.
+**Si completaste el Lab 5**, puedes ampliar tu agente `cymbal-data-agent` para que también responda preguntas predictivas.
 
-First, establish the "before". Open [BigQuery Agents](https://console.cloud.google.com/bigquery/agents_hub), on the **Agent Catalog** tab find the ``cymbal-data-agent`` card, open it, and start a conversation. Then stress-test it Lab 5 style with something forward-looking:
+Primero, comprueba qué ocurre antes de conectarle la tabla de pronóstico. Abre [BigQuery Agents](https://console.cloud.google.com/bigquery/agents_hub), localiza la tarjeta de ``cymbal-data-agent``, abre una conversación y pregúntale algo sobre el futuro:
 
 ```
 What will revenue look like next week?
 ```
 
-The best it can do is admit its world ends at the latest `order_date` — or worse, improvise. That's the right behavior with nothing governed to stand on. Now there is something: a forecast mart, built by your pipeline, documented in your catalog. Wire it in:
+Como aún no tiene ninguna fuente predictiva conectada, te indicará honestamente hasta qué fecha llega su histórico. Ahora conéctale tu nueva tabla de pronóstico:
 
-1. Back on the **Agent Catalog** tab, open the agent for editing via the three-dot <walkthrough-spotlight-pointer locator="semantic({button 'Open actions'})">Open actions</walkthrough-spotlight-pointer> menu → **Edit**.
-2. Under *Knowledge sources*, click <walkthrough-spotlight-pointer locator="semantic({button 'Add source'})">Add source</walkthrough-spotlight-pointer>, search for ``fct_revenue_forecast``, and add it as the fourth source.
-
-Then append one rule to the agent instructions — it extends the "never sum across currencies" discipline into the future:
+1. De vuelta en la pestaña **Agent Catalog**, abre el agente para editarlo desde el menú de tres puntos <walkthrough-spotlight-pointer locator="semantic({button 'Open actions'})">Open actions</walkthrough-spotlight-pointer> → **Edit**.
+2. En *Knowledge sources*, haz clic en <walkthrough-spotlight-pointer locator="semantic({button 'Add source'})">Add source</walkthrough-spotlight-pointer>, busca ``fct_revenue_forecast`` y añádela como cuarta tabla del agente.
+3. Añade esta regla al final de las instrucciones del agente:
 
 ```
 - fct_revenue_forecast: use for forward-looking questions ("what will", "next week", "forecast", "projection"). forecast_revenue is the median TimesFM forecast per currency and forecast_date; always report lower_bound and upper_bound alongside it, and never sum forecasts across currencies. For dates beyond the last forecast_date, say the forecast horizon ends there instead of guessing.
 ```
 
-Click **Save**, then **Publish** — the published resource is what the API (and your Lab 6 analyst, if it's still running) sees. Now start a new conversation and ask for the future — anchored to the *data*, not the wall clock, same lesson as the warm-up:
+Pulsa **Save** y luego **Publish**. Inicia una nueva conversación con el agente y pregúntale:
 
 ```
 What does our revenue forecast look like, per currency?
 ```
 
-Watch the SQL it generates: a query against `cymbal_gold.fct_revenue_forecast`, per currency, medians with their intervals — governed data in, honest uncertainty out. That's the difference between an agent that *sounds* confident and one that has something to be confident about. (Re-ask the *"next week"* question too: if the seed's 14-day forecast window still covers next week, you now get numbers; at a later event, the agent tells you the horizon ends before then instead of guessing — the rule you just wrote, doing its job either way.)
+Observa cómo el agente consulta `cymbal_gold.fct_revenue_forecast` y te presenta la predicción por divisa junto con sus intervalos de confianza inferior y superior.
 
-### Success
+### ¡Completado!
 
-🎉 Visionary{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! One function call turned 540 days of governed history into a two-week revenue outlook — no model trained, no endpoint managed — and you shipped it properly: a tagged Dataform mart, a natural-language chart, and (if your agent got the upgrade) forward-looking answers with honest error bars. Cymbal no longer just knows what happened — it knows what's coming. 🔮
+🎉 ¡Visionario{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! Con una sola función nativa (`AI.FORECAST`) has transformado 540 días de histórico gobernado en una previsión multimoneda a dos semanas vista, materializada en **Dataform**, visualizada en **Data Canvas** y conectada a tu **BigQuery Data Agent**. 🔮

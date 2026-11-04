@@ -1,40 +1,44 @@
-## Lab 4: Governance with Knowledge Catalog
+## Lab 4: Gobierno del Dato con Knowledge Catalog
 
 <walkthrough-tutorial-duration duration="30"></walkthrough-tutorial-duration>
 {{ author('Fabian Hirschmann', 'https://linkedin.com/in/fhirschmann') }}
 <walkthrough-tutorial-difficulty difficulty="2"></walkthrough-tutorial-difficulty>
 <bootkon-cloud-shell-note/>
 
-You have a working medallion — now make it *trustworthy*. Before an AI agent touches your data in Lab 5, you need three answers: **Can I find it? Can I trust it? Who may see it?** You answer each one with **Knowledge Catalog** (formerly Dataplex), and you'll find that the catalog has already done most of the work.
+Ya tienes tu arquitectura Medallion funcionando — ahora toca hacerla *confiable y gobernada*. Antes de permitir que un agente de IA consulte tus datos en el Lab 5, toda plataforma empresarial necesita responder a tres preguntas clave: **¿Puedo encontrar el dato? ¿Puedo fiarme de su calidad? ¿Quién tiene permiso para verlo?** En este laboratorio responderás a las tres con **Knowledge Catalog** (anteriormente *Dataplex*), comprobando además que el catálogo ya ha hecho de forma automática gran parte del trabajo por ti.
 
-### About Knowledge Catalog
+### Acerca de Knowledge Catalog
 
-Knowledge Catalog is Google Cloud's metadata and governance layer, and it **fills itself**: every BigQuery dataset, table and column you created in Labs 2–3 is already in it, together with the descriptions from your Dataform code. You add the two things the platform can't guess: **data quality rules**, which measure what's actually in a table, and **policy tags**, which decide who may read a sensitive column. Humans search this metadata, and agents rely on it to understand your data.
+**Knowledge Catalog** es la capa unificada de metadatos y gobierno de **Google Cloud**, y se **alimenta automáticamente**: cada dataset, tabla y columna de **BigQuery** que has creado en los Labs 2 y 3 ya está registrado en el catálogo, junto con las descripciones técnicas definidas en tu código de **Dataform**. Sobre esa base automática, tú añades los dos controles que la plataforma no puede adivinar por sí sola:
+1. **Data Quality Rules**, que miden objetivamente la calidad de los datos almacenados en una tabla.
+2. **Policy Tags**, que restringen quién puede leer columnas sensibles (*PII*).
 
-Learn more:
+Tanto los analistas humanos como los agentes de IA se apoyan en estos metadatos para descubrir y comprender tus datos con seguridad.
+
+Para saber más:
 - [Knowledge Catalog overview](https://docs.cloud.google.com/knowledge-catalog/docs/introduction)
 - [Auto data quality](https://docs.cloud.google.com/knowledge-catalog/docs/auto-data-quality-overview)
 - [Column-level security with policy tags](https://docs.cloud.google.com/bigquery/docs/column-level-security-intro)
 
-### Find your data
+### Descubre tus datos con búsqueda semántica
 
-Nobody has registered a single table, so search anyway. Open [Knowledge Catalog search](https://console.cloud.google.com/dataplex/dp-search) and ask in plain English:
+Aunque nadie ha registrado manualmente ninguna tabla en el catálogo, vamos a buscarla en lenguaje natural. Abre [Knowledge Catalog search](https://console.cloud.google.com/dataplex/dp-search) y escribe esta pregunta en el buscador:
 
 ```
 Which tables contain revenue by day?
 ```
 
-`fct_daily_revenue` comes up (if the results look off, a plain `revenue` finds it too). The catalog picked it up from BigQuery automatically, with no crawler and no registration step.
+Verás aparecer `fct_daily_revenue` en los resultados (si prefieres buscar por palabra clave, `revenue` también la localiza al instante). El catálogo la ha indexado automáticamente desde **BigQuery**, sin necesidad de configurar *crawlers* ni procesos manuales de registro.
 
-Now see what the catalog knows about it. In [BigQuery](https://console.cloud.google.com/bigquery), open `cymbal_gold` → `fct_daily_revenue` → <walkthrough-spotlight-pointer locator="semantic({tab 'Details'})">Details</walkthrough-spotlight-pointer>. If agy gave the model a `description` in its Dataform config, it shows up here, so documentation written in code lands in the catalog. (No description? An agent would have to guess what this table means. Lab 5 fixes that with agent instructions.)
+Comprueba ahora qué metadatos conoce el catálogo sobre ella. En [BigQuery](https://console.cloud.google.com/bigquery), abre `cymbal_gold` → `fct_daily_revenue` → <walkthrough-spotlight-pointer locator="semantic({tab 'Details'})">Details</walkthrough-spotlight-pointer>. Si `agy` incluyó el campo `description` en la cabecera SQLX del modelo de Dataform, aparecerá aquí publicado: la documentación escrita como código (*documentation-as-code*) viaja directamente hasta el catálogo corporativo.
 
-### Hold bronze to a standard
+### Audita la calidad de la capa Bronze con Auto Data Quality
 
-In Lab 3 your assertions tested what Dataform *built*, at build time. A **data quality scan** checks a table independently of any pipeline, on demand or on a schedule, and publishes a score to the catalog. Point one at bronze, where you know the flaws are.
+En el Lab 3 tus *assertions* validaron lo que **Dataform** construía en tiempo de compilación/ejecución. Un **Data Quality Scan** de **Knowledge Catalog**, en cambio, audita una tabla de forma independiente a cualquier pipeline — bajo demanda o de manera programada — y publica la puntuación oficial de calidad directamente en la ficha de la tabla en el catálogo. Vamos a lanzar un escaneo sobre `cymbal_bronze.cymbal_orders`, donde sabemos que residen los errores del sistema origen.
 
-The rules live in a short spec file: <walkthrough-editor-open-file filePath="content/agenticdata/src/governance/orders_quality.yaml">orders_quality.yaml</walkthrough-editor-open-file>. It has two rules, the same ones your silver assertions enforce: `status` must be one of six known values, and `order_ts` must not lie in the future.
+Las reglas de calidad están definidas en un fichero YAML declarativo: <walkthrough-editor-open-file filePath="content/agenticdata/src/governance/orders_quality.yaml">orders_quality.yaml</walkthrough-editor-open-file>. Contiene dos reglas equivalentes a las que exige la capa *silver*: que `status` pertenezca al conjunto de seis estados válidos y que `order_ts` no tenga fechas en el futuro.
 
-The scan runs as `dataquality-service-account`, which is pre-provisioned in your project with BigQuery read access. First, allow the Knowledge Catalog service agent to act as it:
+El escaneo se ejecuta con la cuenta de servicio `dataquality-service-account`, ya pre-aprovisionada en tu proyecto con permisos de lectura en BigQuery. Primero, autoriza al *service agent* de **Knowledge Catalog** para actuar en nombre de esa cuenta de servicio:
 
 ```bash
 gcloud iam service-accounts add-iam-policy-binding dataquality-service-account@{{ PROJECT_ID }}.iam.gserviceaccount.com \
@@ -42,9 +46,9 @@ gcloud iam service-accounts add-iam-policy-binding dataquality-service-account@{
     --role=roles/iam.serviceAccountTokenCreator
 ```
 
-IAM changes take a moment to propagate, so give the binding about a minute before you create the scan. If the create command below **fails** with a permission error on the service account, that's propagation: wait a minute and run it again.
+Los cambios de IAM tardan alrededor de un minuto en propagarse. Si el comando de creación del escaneo que aparece justo debajo devolviera un error de permisos sobre la *service account*, espera unos segundos y vuelve a lanzarlo.
 
-Then create the scan:
+A continuación, crea el *Data Quality Scan* `bronzeorders`:
 
 ```bash
 cd ~/bootkon
@@ -55,51 +59,51 @@ gcloud dataplex datascans create data-quality bronzeorders \
     --service-account=dataquality-service-account@{{ PROJECT_ID }}.iam.gserviceaccount.com
 ```
 
-A word on the flags: your datasets sit in the `us` multi-region, and a scan may live in any region inside it, so `{{ REGION }}` it is. With no `--schedule`, the scan runs on demand. The spec's `catalogPublishingEnabled: true` publishes every result to the catalog and to BigQuery.
+Un detalle sobre los parámetros: tus datasets están en la multi-región `us`, por lo que el escaneo puede residir en cualquier región dentro de ese ámbito (`{{ REGION }}`). Al no especificar `--schedule`, el escaneo se ejecuta bajo demanda. Además, la propiedad `catalogPublishingEnabled: true` del fichero YAML publica automáticamente los resultados en la pestaña *Data quality* de la tabla en **BigQuery** y **Knowledge Catalog**.
 
-Now run it:
+Lanza ahora la ejecución del escaneo:
 
 ```bash
 gcloud dataplex datascans run bronzeorders --location={{ REGION }}
 ```
 
-The job takes two to three minutes. Then, in [BigQuery](https://console.cloud.google.com/bigquery), open `cymbal_bronze` → `cymbal_orders` and click <walkthrough-spotlight-pointer locator="semantic({tab 'Data quality'})">Data quality</walkthrough-spotlight-pointer> (refresh the page if the tab is still empty).
+El trabajo tarda entre dos y tres minutos en completarse. Pasado ese tiempo, ve a [BigQuery](https://console.cloud.google.com/bigquery), abre `cymbal_bronze` → `cymbal_orders` y haz clic en la pestaña <walkthrough-spotlight-pointer locator="semantic({tab 'Data quality'})">Data quality</walkthrough-spotlight-pointer> (refresca la página del navegador si aún aparece vacía).
 
-**The scan fails, on purpose.** A few percent of rows break the `status` rule (the `shiped` typo), and a handful break the `order_ts` rule. Your pipeline already cleans these flaws away, but now the catalog records them too, so anyone who opens this table sees that bronze is raw and shouldn't be consumed directly.
+**Verás que el escaneo falla — y ese es exactamente el objetivo.** Un porcentaje de las filas incumple la regla de `status` (por el error tipográfico `shiped`) y otro grupo incumple la regla de `order_ts` con fechas futuras. Tu pipeline de **Dataform** ya limpia estos defectos al pasar a *silver*, pero gracias a este escaneo el catálogo deja constancia visible de que `cymbal_bronze` contiene datos en bruto no aptos para consumo directo por usuarios o agentes.
 
-### Lock down PII
+### Protege los datos personales (PII) a nivel de columna
 
-`stg_customers.email` is personal data. Enforce column-level security with a policy tag:
+La columna `stg_customers.email` contiene información personal identificable (*PII*). Vamos a protegerla aplicando seguridad a nivel de columna (*Column-Level Security*) mediante una **Policy Tag**:
 
-1. Open [BigQuery policy tags](https://console.cloud.google.com/bigquery/policy-tags) and click <walkthrough-spotlight-pointer locator="text('Create taxonomy')">Create Taxonomy</walkthrough-spotlight-pointer>:
-    - Taxonomy name: `cymbal`, location `us`
-    - Policy tag: `pii`, description: `Personal data — restricted`
-2. Create it, then toggle `Enforce access control` on.
-3. In [BigQuery](https://console.cloud.google.com/bigquery), open `cymbal_silver` → `stg_customers` → <walkthrough-spotlight-pointer locator="semantic({button 'Edit schema'})">Edit schema</walkthrough-spotlight-pointer>, select the `email` column, click *Add policy tag*, and pick `cymbal > pii`. Save.
+1. Abre [BigQuery policy tags](https://console.cloud.google.com/bigquery/policy-tags) y haz clic en <walkthrough-spotlight-pointer locator="text('Create taxonomy')">Create Taxonomy</walkthrough-spotlight-pointer>:
+    - **Taxonomy name**: `cymbal`, **Location**: `us`
+    - **Policy tag**: `pii`, **Description**: `Personal data — restricted`
+2. Pulsa **Create** y, una vez creada la taxonomía, activa el interruptor **`Enforce access control`**.
+3. Ve a [BigQuery](https://console.cloud.google.com/bigquery), abre `cymbal_silver` → `stg_customers` → haz clic en <walkthrough-spotlight-pointer locator="semantic({button 'Edit schema'})">Edit schema</walkthrough-spotlight-pointer>, selecciona la casilla de la columna `email`, pulsa **Add policy tag**, elige `cymbal > pii` y pulsa **Save**.
 
-Now prove it works. This query **must fail** with an access-denied error on the tagged column:
+Ahora comprobemos que el bloqueo es efectivo. Ejecuta esta consulta en el editor de BigQuery — **debe fallar** con un error de acceso denegado (*Access Denied*) sobre la columna `email`:
 
 ```sql
 SELECT email FROM `{{ PROJECT_ID }}.cymbal_silver.stg_customers` LIMIT 5
 ```
 
-And this one works fine:
+En cambio, esta segunda consulta excluyendo `email` funciona sin ningún problema:
 
 ```sql
 SELECT * EXCEPT (email) FROM `{{ PROJECT_ID }}.cymbal_silver.stg_customers` LIMIT 5
 ```
 
-Even with admin rights on BigQuery, you can't read that column: reading tagged data needs a separate grant (**Fine-Grained Reader**). That's the guarantee you want before you let AI agents loose on the warehouse.
+Fíjate en la implicación de seguridad: incluso siendo propietario/administrador del proyecto en BigQuery, no puedes leer esa columna a menos que tengas explícitamente concedido el rol **Fine-Grained Reader** sobre el *policy tag*. Esa es la garantía de gobierno que necesitas antes de conectar agentes de IA a tu plataforma de datos.
 
-❗ If the first query suddenly works again later, a `dataform run` has rebuilt `stg_customers` and dropped the hand-attached tag. Attach it again (step 3).
+❗ *Nota*: Si más adelante vuelves a ejecutar `dataform run --tags silver`, Dataform recreará la tabla `stg_customers` desde cero y eliminará la etiqueta asignada manualmente desde la consola; si quieres conservarla tras re-ejecutar Dataform, basta con volver a asociarla en *Edit schema* (o declararla directamente en el bloque `config` del fichero `.sqlx`).
 
-### Challenge: prove silver passes
+### Reto opcional: demuestra que la capa Silver pasa el control de calidad al 100%
 
-**\[TASK\]** Take up to 5 minutes.
+**\[RETO\]** Si dispones de 5 minutos extra:
 
-1. Clone the scan onto `cymbal_silver.stg_orders`: use the same spec file and the new scan ID `silverorders`. Only the scan ID and `--data-source-resource` change. Run it and compare both scores in the Data quality tab.
-2. Discuss with your table: if silver passes, why keep scanning bronze at all?
+1. Crea un segundo escaneo apuntando a `cymbal_silver.stg_orders` reutilizando el mismo fichero `orders_quality.yaml` y llamándolo `silverorders` (solo cambian el nombre del scan y el parámetro `--data-source-resource`). Ejecútalo y compara la puntuación del 100% en la pestaña *Data quality* de `stg_orders` frente al fallo en `cymbal_orders`.
+2. Comenta con tu mesa: si `silver` pasa siempre al 100%, ¿por qué sigue siendo buena práctica mantener un escaneo de calidad sobre `bronze` en producción?
 
-### Success
+### ¡Completado!
 
-🎉 Splendid{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! Your platform now explains itself: every table is findable without anyone registering it, bronze carries an honest (failing) quality score, and customer emails are locked down even against admins. Governance done — the agents can come. 🛡️
+🎉 ¡Magnífico{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! Tu plataforma ahora se explica y se protege por sí sola: todas las tablas son localizables sin registro manual, la capa *bronze* exhibe su indicador real de calidad y los correos electrónicos de los clientes están blindados a nivel de columna incluso frente a administradores. Con el gobierno listo, ¡es la hora de los agentes de IA! 🛡️

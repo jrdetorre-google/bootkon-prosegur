@@ -1,71 +1,76 @@
-## Lab 3: The Medallion — Dataform, Authored by agy
+## Lab 3: La Arquitectura Medallion — Dataform asistido por `agy`
 
 <walkthrough-tutorial-duration duration="40"></walkthrough-tutorial-duration>
 {{ author('Fabian Hirschmann', 'https://linkedin.com/in/fhirschmann') }}
 <walkthrough-tutorial-difficulty difficulty="3"></walkthrough-tutorial-difficulty>
 <bootkon-cloud-shell-note/>
 
-Your bronze layer is a faithful replica — including every flaw of the source system: duplicate customers, a `shiped` typo, lowercase currencies, orphaned line items, negative payments. In this lab you build the **silver** (cleaned, tested) and **gold** (business marts) layers with **Dataform**.
+Tu capa *bronze* es una réplica exacta del sistema operacional — lo que significa que también hereda todos los problemas de calidad del origen: clientes duplicados, el error tipográfico `shiped`, códigos de divisa en minúsculas, líneas de pedido huérfanas y pagos negativos. En este laboratorio construirás las capas **silver** (datos limpios, normalizados y validados) y **gold** (*data marts* de negocio listos para analítica e IA) utilizando **Dataform**.
 
-The twist: **agy writes all of the SQL**. You direct, review, run, and verify. This is the lab where "agent writes the pipeline" stops being a slide and becomes your terminal.
+La clave de este laboratorio: **`agy` escribirá todo el código SQLX por ti**. Tú defines el encargo, revisas los cambios, ejecutas el pipeline y verificas el resultado. Aquí es donde la ingeniería de datos asistida por agentes pasa de la teoría a tu terminal.
 
-We use the open-source **Dataform CLI** — code-first, version-controllable, and a perfect fit for an agentic workflow (compile errors go straight back into agy). In production you would run the same project on a schedule in managed Dataform.
+En este laboratorio utilizaremos la **Dataform CLI** open-source: orientada a código, versionable en Git e ideal para trabajar con un agente en bucle cerrado (si hay algún error de compilación, `agy` lo lee directamente en la terminal y lo corrige al instante). En producción puedes ejecutar exactamente el mismo proyecto de forma planificada en **Managed Dataform** dentro de Google Cloud.
 
-### About Dataform and the medallion pattern
+### Acerca de Dataform y el patrón Medallion
 
-Dataform manages SQL transformations as *code*: each table is a **SQLX** file (SQL plus a small config header), dependencies are declared with `${ref(...)}` instead of hardcoded table names, and from those references Dataform compiles a dependency graph and executes it in the right order against BigQuery. **Assertions** are data tests that run with every execution — uniqueness, non-null, arbitrary row conditions — and fail the run when the data breaks a promise; **tags** let you execute just a slice of the graph (you will run `silver` and `gold` separately).
+**Dataform** gestiona las transformaciones SQL como *código*: cada tabla o vista se define en un fichero **SQLX** (una cabecera de configuración más la consulta SQL), las dependencias entre tablas se declaran con `${ref(...)}` en lugar de escribir nombres físicos de tablas, y a partir de esas referencias Dataform construye automáticamente el grafo de dependencias (DAG) y lo ejecuta en el orden correcto sobre **BigQuery**. Las **assertions** son tests de calidad de datos que se ejecutan en cada corrida — unicidad de clave primaria, columnas no nulas o condiciones de negocio arbitrarias — haciendo fallar la ejecución si los datos incumplen alguna regla; y los **tags** permiten ejecutar subconjuntos del grafo (hoy lanzaremos `silver` y `gold` por separado).
 
-The **medallion pattern** you are about to build is the standard way to organize such a warehouse: *bronze* holds raw, untouched source data (your CDC replica), *silver* is cleaned and tested, and *gold* holds the business-level marts that people — and, from Lab 5 on, agents — actually consume. Each layer has one job, and problems are fixed at the earliest layer that can see them.
+El **patrón Medallion** que vas a construir es el estándar de arquitectura para estructurar un *lakehouse* analítico:
+- **Bronze** conserva los datos brutos tal cual llegan del origen (tu réplica CDC).
+- **Silver** limpia, deduplica, tipa y valida los datos con *assertions*.
+- **Gold** expone las tablas agregadas y modelos dimensionales de negocio que consumen los usuarios — y, a partir del Lab 5, los agentes de IA.
 
-Learn more:
+Para saber más:
 - [Dataform overview](https://docs.cloud.google.com/dataform/docs/overview)
 - [Dataform core concepts](https://docs.cloud.google.com/dataform/docs/dataform-core)
 - [The Dataform CLI](https://docs.cloud.google.com/dataform/docs/use-dataform-cli)
 - [Assertions](https://docs.cloud.google.com/dataform/docs/assertions)
 
-### Set up the project
+### Preparar el proyecto de Dataform
 
-The Dataform CLI is already on your machine, and the project is pre-wired — the Lab 1 bootstrap installed the CLI, pointed the settings at your project, and wrote the credentials file. The starter project ships with the repository — you work on it directly in `content/agenticdata/src/dataform` (settings + bronze source declarations only; the models are agy's job). **This folder is your home for the rest of this lab** — change into it once:
+La **Dataform CLI** ya está instalada y conectada a tu proyecto gracias al `bk-bootstrap` del Lab 1. El esqueleto inicial del proyecto se encuentra en `content/agenticdata/src/dataform` (contiene únicamente la configuración y las declaraciones de las tablas origen de *bronze*; crear los modelos *silver* y *gold* será el trabajo de `agy`). **Esta carpeta será tu directorio de trabajo durante todo el Lab 3**, así que sitúate en ella:
 
 ```bash
 cd ~/bootkon/content/agenticdata/src/dataform
 ```
 
-Two files are worth a look before you brief anyone. <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform/workflow_settings.yaml">workflow_settings.yaml</walkthrough-editor-open-file> (generated for you from the template by the bootstrap) — `defaultProject` should read `{{ PROJECT_ID }}`, and the git-ignored `.df-credentials.json` next to it tells the CLI to use your logged-in identity (Application Default Credentials) against BigQuery — no keys involved. And <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform/definitions/sources.js">sources.js</walkthrough-editor-open-file>: it declares the six bronze tables so every model can reference them with `${ref(...)}`, which is what builds the dependency graph.
+Antes de pedir nada a `agy`, merece la pena inspeccionar dos archivos:
+1. <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform/workflow_settings.yaml">workflow_settings.yaml</walkthrough-editor-open-file> (generado a partir de la plantilla durante el bootstrap): comprueba que `defaultProject` contiene `{{ PROJECT_ID }}`. Junto a él, el archivo `.df-credentials.json` (ignorado por Git) indica a la CLI que utilice tus *Application Default Credentials (ADC)* contra BigQuery sin necesidad de claves JSON.
+2. <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform/definitions/sources.js">sources.js</walkthrough-editor-open-file>: declara las seis tablas de `cymbal_bronze` para que cualquier modelo pueda referenciarlas mediante `${ref(...)}` y construir el linaje automáticamente.
 
-### Brief your co-engineer
+### Encarga la construcción del pipeline a tu co-ingeniero (`agy`)
 
-The full specification of what to build — source schemas, the known data problems, the target silver/gold tables, and the assertion rules — lives in <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform/AGENTS.md">AGENTS.md</walkthrough-editor-open-file>, right inside the project. Read it: it's the brief you are about to hand your co-engineer, and keeping it in a file (instead of a giant prompt) makes agy's work reproducible.
+La especificación completa de lo que queremos construir — esquemas de origen, problemas de calidad conocidos que hay que corregir, definición exacta de las tablas *silver* y *gold*, y reglas de las *assertions* — está documentada en el archivo <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform/AGENTS.md">AGENTS.md</walkthrough-editor-open-file> dentro de la propia carpeta de Dataform. Ábrelo y léelo: mantener la especificación técnica en un fichero `AGENTS.md` versionado en el repositorio (en lugar de improvisar un prompt gigante) es una de las mejores prácticas para que el trabajo de los agentes de código sea repetible y auditable.
 
-Start agy (you are already in the project folder):
+Inicia `agy` (asegúrate de estar ya dentro de `~/bootkon/content/agenticdata/src/dataform`):
 
 ```bash
 agy
 ```
 
-And hand over the brief:
+Y entrégale el encargo:
 
 ```bash
 /goal Read AGENTS.md and build the complete silver and gold layers it specifies. Run dataform compile yourself and fix any errors until the project compiles cleanly.
 ```
 
-Watch agy work: it will create the `.sqlx` files, run `dataform compile`, read the errors, and fix its own code. Review the result with `/diff` before accepting.
+Observa cómo trabaja `agy`: leerá `AGENTS.md` y `sources.js`, creará los ficheros `.sqlx` de las capas *silver* y *gold*, ejecutará `dataform compile`, analizará cualquier error de compilación y lo corregirá por sí mismo hasta que el grafo compile limpiamente. Cuando termine, puedes revisar los cambios propuestos con `/diff`.
 
-Note: **If agy took a wrong turn** or you want to compare with a known-good implementation, the reference lives right next door in `src/dataform_reference/` — for example <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform_reference/definitions/stg_customers.sqlx">stg_customers.sqlx</walkthrough-editor-open-file> and <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform_reference/definitions/fct_daily_revenue.sqlx">fct_daily_revenue.sqlx</walkthrough-editor-open-file>. Restore with:
+Nota: **Si `agy` se desviara en algún modelo** o quieres comparar su código con la implementación de referencia oficial, tienes la solución completa al lado en `src/dataform_reference/` — por ejemplo <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform_reference/definitions/stg_customers.sqlx">stg_customers.sqlx</walkthrough-editor-open-file> y <walkthrough-editor-open-file filePath="content/agenticdata/src/dataform_reference/definitions/fct_daily_revenue.sqlx">fct_daily_revenue.sqlx</walkthrough-editor-open-file>. En caso de necesitarlo, puedes copiar la referencia con:
 
 ```bash
 cp ~/bootkon/content/agenticdata/src/dataform_reference/definitions/*.sqlx ~/bootkon/content/agenticdata/src/dataform/definitions/
 ```
 
-### Compile and run
+### Compilar y ejecutar en BigQuery
 
-Exit agy and verify the compilation yourself — trust, but verify:
+Sal de `agy` escribiendo `/quit` y verifica tú mismo que el proyecto compila sin errores — *confía, pero verifica*:
 
 ```bash
 dataform compile
 ```
 
-You should see the models, their dependencies, and the assertions. Now build silver, then gold — each run finishes in well under a minute on the seed data:
+Verás el resumen con las tablas, vistas y *assertions* compiladas. Ahora ejecuta en **BigQuery** primero la capa `silver` y a continuación la capa `gold` (cada ejecución tarda menos de un minuto sobre los datos semilla):
 
 ```bash
 dataform run --tags silver
@@ -75,15 +80,15 @@ dataform run --tags silver
 dataform run --tags gold
 ```
 
-Each run also executes the **assertions** — data tests that fail the run if the cleaning didn't work. If a run fails, paste the error into agy and let it repair its own pipeline; that feedback loop is the whole point of this lab.
+Cada ejecución lanza también automáticamente las **assertions** — los tests de calidad que hacen fallar el pipeline si alguna regla de limpieza no se cumple. Si alguna tabla o *assertion* fallara en ejecución contra BigQuery, copia el mensaje de error, vuelve a abrir `agy` y pídele que lo repare: ese ciclo de retroalimentación es precisamente la esencia del flujo agéntico.
 
-### Verify in the console
+### Verifica el resultado en la consola de BigQuery
 
-Open [BigQuery](https://console.cloud.google.com/bigquery) and expand your project:
+Abre [BigQuery](https://console.cloud.google.com/bigquery) y despliega tu proyecto en el panel izquierdo:
 
-1. You now have three medallion datasets: <walkthrough-spotlight-pointer locator="text('cymbal_bronze')">cymbal_bronze</walkthrough-spotlight-pointer> , <walkthrough-spotlight-pointer locator="text('cymbal_silver')">cymbal_silver</walkthrough-spotlight-pointer> and <walkthrough-spotlight-pointer locator="text('cymbal_gold')">cymbal_gold</walkthrough-spotlight-pointer> (plus <walkthrough-spotlight-pointer locator="text('cymbal_assertions')">cymbal_assertions</walkthrough-spotlight-pointer> — the test results).
-2. Open <walkthrough-spotlight-pointer locator="text('cymbal_silver')">cymbal_silver</walkthrough-spotlight-pointer> → `stg_customers` and check the row count in <walkthrough-spotlight-pointer locator="semantic({tab 'Details'})">Details</walkthrough-spotlight-pointer> — fewer rows than `cymbal_bronze` → `cymbal_customers`: the duplicates and invalid emails are gone.
-3. Query the flaw you'll never see again:
+1. Verás que ahora existen los tres datasets de la arquitectura Medallion: <walkthrough-spotlight-pointer locator="text('cymbal_bronze')">cymbal_bronze</walkthrough-spotlight-pointer>, <walkthrough-spotlight-pointer locator="text('cymbal_silver')">cymbal_silver</walkthrough-spotlight-pointer> y <walkthrough-spotlight-pointer locator="text('cymbal_gold')">cymbal_gold</walkthrough-spotlight-pointer> (además de <walkthrough-spotlight-pointer locator="text('cymbal_assertions')">cymbal_assertions</walkthrough-spotlight-pointer> con las vistas de validación).
+2. Abre <walkthrough-spotlight-pointer locator="text('cymbal_silver')">cymbal_silver</walkthrough-spotlight-pointer> → `stg_customers` y comprueba el número de filas en la pestaña <walkthrough-spotlight-pointer locator="semantic({tab 'Details'})">Details</walkthrough-spotlight-pointer>: verás que hay menos filas que en `cymbal_bronze` → `cymbal_customers`, porque se han eliminado los duplicados y los registros con emails inválidos.
+3. Comprueba con una consulta SQL cómo se ha corregido el error tipográfico `shiped` entre *bronze* y *silver*:
 
 ```sql
 SELECT 'bronze' AS layer, COUNT(*) AS shiped_typos
@@ -93,9 +98,8 @@ SELECT 'silver', COUNT(*)
 FROM `{{ PROJECT_ID }}.cymbal_silver.stg_orders` WHERE status = 'shiped'
 ```
 
+Un detalle más: recuerda que tu simulador (en la pestaña 2 de la terminal) sigue insertando pedidos en PostgreSQL y **Datastream** sigue actualizando `cymbal_bronze` en vivo. Puedes volver a lanzar `dataform run` en cualquier momento para refrescar toda tu arquitectura Medallion con los últimos datos.
 
-One more thing: your simulator (terminal 2) is still writing to Postgres, and Datastream keeps updating bronze. Re-run `dataform run` at any time and the whole medallion refreshes with the latest data.
+### ¡Completado!
 
-### Success
-
-🎉 Bravo{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! You briefed an AI agent, and it wrote, compiled, and repaired a complete medallion pipeline — which *you* reviewed, executed, and verified, assertions and all. Duplicates deduplicated, typos untypo'd, orphans re-homed (well, evicted). The gold layer shines — now let's govern it. 🥇
+🎉 ¡Bravo{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! Has dirigido a un agente de IA para que escriba, compile y valide un pipeline Medallion completo en **Dataform** — y tú lo has revisado, ejecutado y verificado en **BigQuery** con *assertions* incluidas. Los duplicados han desaparecido, los estados corruptos se han corregido y las líneas huérfanas han sido filtradas. Tu capa *gold* ya brilla; en el siguiente laboratorio vamos a gobernarla y protegerla. 🥇

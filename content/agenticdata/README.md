@@ -1,26 +1,30 @@
-# Agentic Data Bootkon
+# Agentic Data Bootkon para Prosegur
 
-Welcome to Agentic Data Bootkon!
+¡Bienvenido a **Agentic Data Bootkon para Prosegur**!
 
-Agentic Data Bootkon is an immersive half-day hackathon for data engineers, architects, and AI enthusiasts. In one afternoon you build a complete **agentic data platform** on Google Cloud — from a live operational database all the way to AI agents that talk to each other about your data over an open protocol. Throughout the event, the **Antigravity CLI (`agy`)** works alongside you as an AI co-engineer: you run the infrastructure, agy writes the code, and the Cloud Console is where you verify what happened.
+**Agentic Data Bootkon para Prosegur** es un hackathon práctico e intensivo diseñado a medida para los equipos de ingeniería de datos, arquitectura e inteligencia artificial de las Unidades de Negocio y áreas corporativas de **Prosegur** (*Prosegur Security, Prosegur Cash, Movistar Prosegur Alarmas, AVOS Tech, Cipher y Corporativo / ITaaS*).
 
-## Use Case
+A lo largo de esta jornada construirás de principio a fin una **agentic data platform** completa sobre **Google Cloud**: desde una base de datos operacional transaccional en vivo hasta un ecosistema de agentes de IA que colaboran entre sí sobre tus datos gobernados utilizando protocolos abiertos. Durante todo el evento, **Antigravity CLI (`agy`)** trabajará contigo como tu co-ingeniero de IA: tú operas la infraestructura desde la terminal, `agy` escribe el código y las configuraciones bajo tu dirección, y **Google Cloud Console** es donde verificas todo lo que ocurre.
 
-Your role: you are a data platform engineer at **Cymbal**, a commerce company whose order platform runs on PostgreSQL. The analytics team is drowning in one-off CSV exports, nobody trusts the numbers, and management wants "AI on our data" — safely. Over one afternoon, you will give Cymbal:
+## Caso de Uso del Laboratorio
 
-1. **A live replica instead of exports.** Datastream captures every insert, update, and delete from Cloud SQL for PostgreSQL and merges it into BigQuery within moments — over Private Service Connect, with no public IPs anywhere.
-2. **Numbers people can trust.** A medallion architecture (bronze → silver → gold) built with Dataform, where the SQL is authored by the Antigravity CLI under your direction, complete with data tests. The raw data contains real-world-style flaws (duplicates, typos, orphaned records) — cleaning them is the point.
-3. **Governance before agents.** Knowledge Catalog makes every table findable, holds the raw data to a quality standard, and locks down PII with enforced column-level security — the grounding layer that makes AI answers trustworthy.
-4. **Agents on top.** A BigQuery conversational data agent over the gold layer, then an ADK multi-agent system: a concierge agent that answers live operational questions straight from Postgres and delegates analytical questions to the data agent over the **A2A protocol** — *agent-to-agent*, the open standard (governed by the Linux Foundation) that lets AI agents from any framework or vendor discover and call each other, the way HTTP lets services talk to each other.
+Para que cada participante disponga de un entorno aislado, reproducible y con millones de registros listos para operar desde el minuto uno, en los laboratorios asumirás el rol de ingeniero de plataforma de datos en **Cymbal**, una compañía cuyos sistemas transaccionales de pedidos corren sobre **PostgreSQL**. Al igual que ocurre en entornos empresariales complejos multi-negocio, el equipo de analítica sufre con exportaciones manuales en CSV, existen discrepancias en las cifras, y la dirección quiere activar **"IA sobre nuestros datos"** de forma segura y gobernada.
 
-## Architecture
+A lo largo de la sesión construirás los cuatro pilares de la plataforma:
+
+1. **Replicación continua en tiempo real en lugar de exportaciones batch.** **Datastream** captura cada `INSERT`, `UPDATE` y `DELETE` desde **Cloud SQL for PostgreSQL** mediante *Change Data Capture (CDC)* y lo fusiona en **BigQuery** en cuestión de segundos — íntegramente a través de **Private Service Connect (PSC)**, sin exponer IPs públicas en ningún punto.
+2. **Datos fiables mediante una arquitectura Medallion asistida por IA.** Construirás las capas *bronze → silver → gold* con **Dataform** (SQLX), donde **Antigravity CLI (`agy`)** redactará las transformaciones y los tests de calidad (*assertions*) bajo tu supervisión. Los datos en bruto contienen errores deliberados de calidad del mundo real (clientes duplicados, errores tipográficos de estado, divisas inconsistentes, registros huérfanos e importes negativos) que limpiarás de forma automatizada.
+3. **Gobierno universal antes de desplegar agentes.** Con **Knowledge Catalog** harás que cada tabla sea descubrible semánticamente, medirás la calidad del dato mediante *Data Quality Scans* automatizados y protegerás la información personal (*PII*) con seguridad a nivel de columna (*Policy Tags*), estableciendo la base de confianza sobre la que operarán los agentes.
+4. **Activación agéntica y sistema multi-agente abierto.** Primero crearás y publicarás un **BigQuery Data Agent** (*Conversational Analytics*) conectado a tu capa *gold* gobernada. Después, construirás un sistema multi-agente con **Agent Development Kit (ADK)**: un agente *concierge* capaz de consultar pedidos operacionales en tiempo real en PostgreSQL y delegar preguntas analíticas complejas al agente de BigQuery a través del protocolo abierto **A2A (*Agent2Agent*)**.
+
+## Arquitectura
 
 <table align="center">
   <tr>
     <td align="center" width="130">
       <img src="https://icon.icepanel.io/GCP/svg/Cloud-SQL.svg" width="48" alt="Cloud SQL"/><br>
       <b>Cloud SQL</b><br>
-      <sub>PostgreSQL, PSC-only<br>Cymbal's live order DB</sub>
+      <sub>PostgreSQL, PSC-only<br>BBDD operacional en vivo</sub>
     </td>
     <td align="center"><b>— CDC ▶</b></td>
     <td align="center" width="130">
@@ -32,13 +36,13 @@ Your role: you are a data platform engineer at **Cymbal**, a commerce company wh
     <td align="center" width="180">
       <img src="https://icon.icepanel.io/GCP/svg/BigQuery.svg" width="48" alt="BigQuery"/><br>
       <b>BigQuery</b><br>
-      <sub>bronze → silver → gold<br>Dataform SQLX, authored by agy</sub>
+      <sub>bronze → silver → gold<br>Dataform SQLX, creado con agy</sub>
     </td>
     <td align="center"><b>—▶</b></td>
     <td align="center" width="150">
       <img src="https://icon.icepanel.io/GCP/svg/AI-Platform.svg" width="48" alt="BigQuery data agent"/><br>
-      <b>Data agent</b><br>
-      <sub>conversational analytics<br>grounded on gold</sub>
+      <b>Data Agent</b><br>
+      <sub>conversational analytics<br>anclado sobre gold</sub>
     </td>
   </tr>
   <tr>
@@ -47,7 +51,7 @@ Your role: you are a data platform engineer at **Cymbal**, a commerce company wh
       <b>▲</b><br>
       <img src="https://icon.icepanel.io/GCP/svg/Dataplex.svg" width="40" alt="Knowledge Catalog"/><br>
       <b>Knowledge Catalog</b><br>
-      <sub>search · data quality<br>PII policy tags</sub>
+      <sub>búsqueda · data quality<br>PII policy tags</sub>
     </td>
     <td></td>
     <td align="center"><b>▲</b><br><b>A2A</b></td>
@@ -55,7 +59,7 @@ Your role: you are a data platform engineer at **Cymbal**, a commerce company wh
   <tr>
     <td align="center">
       <b>▲</b><br>
-      <sub>live order<br>lookups</sub>
+      <sub>consultas de<br>pedidos en vivo</sub>
     </td>
     <td colspan="5" align="center"><b>◀————————————————</b></td>
     <td align="center">
@@ -68,30 +72,30 @@ Your role: you are a data platform engineer at **Cymbal**, a commerce company wh
     <td colspan="7" align="center">
       <img src="https://icon.icepanel.io/GCP/svg/Cloud-Shell.svg" width="40" alt="Cloud Shell"/><br>
       <b>Cloud Shell + Antigravity CLI (agy)</b><br>
-      <sub>you operate the shell · agy authors the code · the console verifies</sub>
+      <sub>tú operas la terminal · agy escribe el código · la consola verifica</sub>
     </td>
   </tr>
 </table>
 
-## About the data set
+## Sobre el conjunto de datos
 
-There is no download: the **Cymbal orders** dataset is fully synthetic and generated *inside your own project* by a seeded generator — every participant gets identical data. It models a generic commerce platform (customers, products, orders, order items, payments, reviews; ~2.3M rows, well under 2 GB) and includes deliberately planted data-quality flaws — duplicate customers, invalid emails, a `shiped` status typo, mixed-case currencies, orphaned line items, negative payments, future timestamps — plus PII columns (names, emails, phones, addresses) for the governance lab. A simulator keeps inserting and updating rows during the event, so the change-data-capture pipeline always has something to show.
+No es necesario descargar nada manualmente: el dataset transaccional (**Cymbal orders**) es 100% sintético y ha sido generado de forma determinista *dentro de tu propio proyecto de Google Cloud*, de modo que todos los participantes trabajan exactamente con los mismos datos (~2,3 millones de filas, menos de 2 GB). Incluye problemas de calidad de datos introducidos deliberadamente — clientes duplicados, emails inválidos, un error tipográfico en el estado `shiped`, códigos de divisa en minúsculas, líneas de pedido huérfanas, pagos negativos y marcas de tiempo en el futuro — además de columnas con datos personales (*PII*: nombres, emails, teléfonos y direcciones) para el laboratorio de gobierno. Durante el evento lanzarás un simulador de actividad que insertará y actualizará filas en continuo para ver fluir el pipeline *CDC* en tiempo real.
 
-## Logging into Google Cloud
+## Inicio de sesión en Google Cloud
 
 > [!CAUTION]
-> Please follow the below steps exactly as written. Deviating from them has unintended consequences.
+> Por favor, sigue los pasos siguientes exactamente como se indican. Saltarse alguno puede impedir que el entorno interactivo cargue correctamente.
 
-Let us set up your Google Cloud Console. Please:
+Vamos a configurar tu acceso a **Google Cloud Console**:
 
-1. Open a new browser window in **Incognito** mode.
-2. Open this handbook in your newly opened incognito window and keep reading; close this window in your main browser window.
-3. Open <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a> and log in with the provided credentials.
-4. Accept the Terms of Services.
+1. Abre una ventana nueva de tu navegador en modo **Incógnito** (`Ctrl+Shift+N` en Windows/Linux o `Cmd+Shift+N` en Mac).
+2. Abre esta página del repositorio en la ventana de incógnito que acabas de abrir para seguir leyendo desde ahí.
+3. Abre <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a> e inicia sesión con las credenciales (`@gcplab.me`) que se te han asignado para el evento.
+4. Acepta los Términos del Servicio (*Terms of Service*).
 
     ![](../common/img/termsofservice.png)
 
-5. Choose your **project id**. Click on select a project and select the project ID (example below)
+5. Selecciona tu **Project ID**. Haz clic en el selector de proyectos (arriba a la izquierda) y elige el proyecto asignado a tu cuenta (como en las capturas siguientes):
     ![](../common/img/selectproject.png)
 
 
@@ -100,70 +104,67 @@ Let us set up your Google Cloud Console. Please:
 
     ![](../common/img/selectproject3.png)
 
-6. Go to [language settings](https://console.cloud.google.com/user-preferences/languages) and change your language to `English (US)`. This will help our tutorial engine recognize items on your screen and make our table captain be able to help you.
+6. Entra en los [ajustes de idioma de la consola](https://console.cloud.google.com/user-preferences/languages) y asegúrate de que el idioma sea **`English (US)`**. Esto es imprescindible para que los punteros interactivos del tutorial reconozcan los botones en pantalla y los *Table Captains* puedan asistirte rápidamente.
 
     ![](../common/img/select_language.png)
 
-## Executing code labs
+## Ejecución de los laboratorios en Cloud Shell
 
-During this event, we will guide you through a series of labs using Google Cloud Shell.
+Durante el evento realizarás todos los laboratorios desde **Google Cloud Shell**.
 
-Cloud Shell is a fully interactive, browser-based environment for learning, experimenting, and managing Google Cloud projects. It comes preloaded with the Google Cloud CLI, essential utilities, and a built-in code editor with Cloud Code integration, enabling you to develop, debug, and deploy cloud apps entirely in the cloud.
-
-Below you can find a screenshot of Cloud Shell.
+**Cloud Shell** es un entorno interactivo basado en navegador que incluye la CLI de Google Cloud preinstalada, utilidades de desarrollo y un editor de código integrado basado en Visual Studio Code, con el panel interactivo del tutorial a la derecha:
 
 ![](../common/img/cloud_shell_window.png)
 
-It is based on Visual Studio Code and hence looks like a normal IDE. However, on the right hand side you see the tutorial you will be working through. When you encounter code chunks in the tutorial, there are two icons on the right hand side. One to copy the code chunk to your clipboard and the other one to insert it directly into the terminal of Cloud Shell.
+En el panel derecho verás las instrucciones paso a paso del laboratorio. En cada bloque de comandos encontrarás dos iconos en la esquina superior derecha: uno para copiar el comando al portapapeles y otro para insertarlo directamente en la terminal de Cloud Shell.
 
-## Working with labs (important)
+## Recomendaciones importantes al trabajar con los laboratorios
 
 > [!CAUTION]
-> Please note the points in this section before you get started with the labs in the next section.
+> Revisa estos puntos antes de lanzar el comando de inicio de la siguiente sección.
 
-While going through the code labs, you will encounter two different terminals on your screen. Please only use the terminal from the IDE (white background) and do not use the non-IDE terminal (black background). In fact, just close the terminal with black background using the `X` button.
+Si en algún momento ves dos terminales distintas en pantalla, utiliza únicamente la terminal integrada del IDE (fondo claro) y cierra la terminal inferior independiente (fondo negro) pulsando su botón `X`:
 
 ![](../common/img/code_terminals.png)
 
-You will also find two buttons on your screen that might seem tempting. <font color="red">Please do not click the *Open Terminal* or *Open in new window* buttons</font> as they will destroy the integrated experience of Cloud Shell.
+Asimismo, <font color="red">no pulses los botones *Open Terminal* ni *Open in new window*</font>, ya que sacarán el entorno de la ventana integrada con el tutorial:
 
 ![](../common/img/code_newwindow.png)
 
-Please double check that the URL in your browser reads `console.cloud.google.com` and <font color="red">not `shell.cloud.google.com`</font>.
+Comprueba siempre que la URL de tu navegador empiece por `console.cloud.google.com` y <font color="red">no por `shell.cloud.google.com`</font>:
 
 ![](../common/img/wrong_url.png)
 
-Should you accidentally close the tutorial or the IDE, just type the following command into the terminal:
+Si en algún momento cierras por accidente el tutorial o el editor, basta con ejecutar este comando en la terminal para volver a abrirlos:
 
 ```bash
 bk-start
 ```
 
 > [!NOTE]
-> This stream uses several terminal tabs at once — an IAP tunnel and a data simulator keep running in the background. Don't close those tabs; new tabs are ready to use right away (your configuration loads automatically from `~/.bashrc`).
+> A lo largo de los laboratorios utilizarás varias pestañas de terminal simultáneamente (por ejemplo, para mantener en segundo plano el túnel IAP y el simulador de pedidos en tiempo real). No cierres esas pestañas; cada nueva pestaña que abras con el botón `+` cargará automáticamente tu configuración desde `~/.bashrc`.
 
-## Start the lab
+## Comenzar el laboratorio
 
-In your Google Cloud Console window, activate Cloud Shell.
+En tu ventana de **Google Cloud Console**, haz clic en el icono **Activate Cloud Shell** (arriba a la derecha):
 
 ![](../common/img/activate_cloud_shell.png)
 
-Click into the terminal that has opened at the bottom of your screen.
+Haz clic dentro de la terminal que se abre en la parte inferior de la pantalla:
 
 ![](../common/img/cloud_shell_terminal.png)
 
-And copy & paste the following command and press return:
+Copia y pega el siguiente comando y pulsa `Enter`:
 
 ```bash
-BK_STREAM=agenticdata BK_REPO=GoogleCloudPlatform/bootkon; . <(curl -fsSL https://raw.githubusercontent.com/${BK_REPO}/main/.scripts/bk)
+BK_STREAM=agenticdata BK_REPO=jrdetorre-google/bootkon-prosegur; . <(curl -fsSL https://raw.githubusercontent.com/${BK_REPO}/main/.scripts/bk)
 ```
 
-Now, please go back to Cloud Shell and continue with the tutorial that has been opened on the right hand side of your screen!
+Cuando te pregunte tu nombre en la terminal (`What should I call you?`), escribe tu nombre (o pulsa `Enter`) y automáticamente se abrirá el editor y el panel interactivo del tutorial a la derecha de tu pantalla. ¡Ya puedes pulsar **START** en el panel derecho para comenzar!
 
+## Créditos y Autores
 
-## Authors
-
-The authors of Agentic Data Bootkon are:
+Edición adaptada para **Prosegur** por el equipo de **Google Cloud Iberia**, basada en el stream oficial **Agentic Data Bootkon** creado por:
 - [Fabian Hirschmann](https://www.linkedin.com/in/fhirschmann/) (maintainer; main author)
 - [Florian Baumert](https://www.linkedin.com/in/florian-baumert/)
 - [Cary Edwards](https://www.linkedin.com/in/cary-edwards-a3a557a6/)

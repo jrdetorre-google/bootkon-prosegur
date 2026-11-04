@@ -1,4 +1,4 @@
-## Lab 9: The Data Exchange — Sharing the Gold
+## Lab 9: Compartición Segura Zero-Copy con BigQuery Sharing (Analytics Hub)
 
 <walkthrough-tutorial-duration duration="25"></walkthrough-tutorial-duration>
 {{ author('Fabian Hirschmann', 'https://linkedin.com/in/fhirschmann') }}
@@ -6,22 +6,25 @@
 <bootkon-cloud-shell-note/>
 <!-- Optional module: not wired into TUTORIAL.md. Renumber the "Lab N" title to match the event agenda when including. Not yet smoke-tested — smoke-test item 1: subscribe to your OWN listing in one sandbox project (the "Subscribe like a partner" step). If the dialog refuses same-project subscriptions, restructure the default path around neighbor pairing and pre-verify the org policy allows cross-account Analytics Hub Subscriber grants. When wiring into TUTORIAL.md: merge src/optional/sharing/prompts.md into src/prompts.md and repoint the prompts.md link in "Draft the data contract with agy". -->
 
-Remember where this story started: Cymbal's analytics team drowning in one-off CSV exports. You built the cure for the *inside* of the company — but Cymbal's partners still get their numbers the old way: somebody exports a CSV, attaches it to an email, and it's stale before it lands. In this lab you close that loop with **BigQuery sharing**: publish the gold marts as a **listing** in your own **data exchange**, then switch chairs and subscribe to it exactly like a partner would — receiving a live, read-only, zero-copy view instead of an attachment.
+Recuerda cómo empezaba el caso de uso de Cymbal: equipos ahogados en exportaciones manuales de ficheros CSV. Con los laboratorios anteriores has resuelto el problema *dentro* de tu proyecto, pero ¿qué ocurre cuando tienes que compartir productos de datos certificados entre distintas Unidades de Negocio, filiales o partners externos? En este laboratorio opcional cerrarás ese círculo con **BigQuery Sharing (Analytics Hub)**: publicarás tu capa `cymbal_gold` como un **listing** dentro de tu propio **data exchange**, redactarás su contrato de datos con `agy` y te suscribirás a él como consumidor, obteniendo acceso en vivo y *zero-copy* sin duplicar almacenamiento ni enviar ficheros por correo.
 
-This lab assumes Labs 1–3 are complete (the `cymbal_gold` marts exist and have been built at least once) and that the data simulator (terminal 2) from Lab 2 is still running — it is what makes the zero-copy proof land.
+Este laboratorio asume que has completado los **Labs 1 a 3** (el dataset `cymbal_gold` ya existe) y que el simulador de pedidos (pestaña 2 de la terminal) del Lab 2 sigue ejecutándose.
 
-### About BigQuery sharing
+### Acerca de BigQuery Sharing (Analytics Hub)
 
-**BigQuery sharing** is BigQuery's built-in distribution channel — you may know it as **Analytics Hub**: Google renamed it, the console page is labeled *Sharing (Analytics Hub)*, and the API keeps the old name. The moving parts: a **data exchange** is a catalog you own — a container for listings, created in your project, no organization-level setup required. A **listing** is one shareable asset (here: a BigQuery dataset) plus the metadata a consumer needs to trust it. When someone subscribes, they get a **linked dataset** in their own project: a read-only *pointer* to your data. Because BigQuery separates storage from compute, a thousand subscribers cost you no extra storage — and publishers stay in control, with egress restrictions, usage metrics, and revocable subscriptions.
+**BigQuery Sharing** (conocido también como **Analytics Hub**) es el canal nativo de publicación e intercambio de datos de **BigQuery**:
+- Un **data exchange** es el escaparate o catálogo de compartición que creas en tu proyecto.
+- Un **listing** representa un activo compartido (por ejemplo, el dataset `cymbal_gold`) acompañado de su documentación, contrato de uso y políticas de control de exfiltración (*egress controls*).
+- Cuando otra unidad de negocio o partner se **suscribe** al *listing*, aparece en su propio proyecto un **linked dataset**: un *puntero* de solo lectura hacia tus tablas. Como BigQuery separa el almacenamiento del cómputo, tener diez o mil suscriptores no añade ni un solo byte de coste extra de almacenamiento, los cambios se ven al instante (*zero-copy*) y el publicador conserva en todo momento el control de acceso y las métricas de uso.
 
-Learn more:
+Para saber más:
 - [Introduction to BigQuery sharing](https://docs.cloud.google.com/bigquery/docs/analytics-hub-introduction)
 - [Manage listings](https://docs.cloud.google.com/bigquery/docs/analytics-hub-manage-listings)
 - [View and subscribe to listings](https://docs.cloud.google.com/bigquery/docs/analytics-hub-view-subscribe-listings)
 
-### Enable sharing and put on both hats
+### Habilita la API y asigna los roles de publicador y suscriptor
 
-BigQuery sharing has its own API and its own IAM roles: **Analytics Hub Admin** runs exchanges and listings, **Analytics Hub Subscriber** consumes them. You'll play both sides today, so grant yourself both (idempotent, safe to re-run):
+Hoy actuarás tanto de publicador (**Analytics Hub Admin**) como de consumidor (**Analytics Hub Subscriber**). Habilita la API y concédete ambos roles en tu proyecto:
 
 ```bash
 gcloud services enable analyticshub.googleapis.com
@@ -31,66 +34,58 @@ gcloud projects add-iam-policy-binding {{ PROJECT_ID }} \
     --member=user:{{ GCP_USERNAME }} --role=roles/analyticshub.subscriber --condition=None
 ```
 
-❗ **Permission denied on the Sharing page?** Fresh IAM grants can take a minute to propagate — wait a moment and reload the page.
+❗ **¿Aparece un mensaje de permiso denegado al abrir la página de Sharing?** Los permisos de IAM recién asignados pueden tardar alrededor de un minuto en propagarse; espera unos segundos y recarga la página.
 
-### Create the exchange
+### Crea el Data Exchange
 
-The exchange is Cymbal's shop window — create it in the console:
+1. Abre [Sharing (Analytics Hub)](https://console.cloud.google.com/bigquery/analytics-hub) en la consola y haz clic en <walkthrough-spotlight-pointer locator="semantic({button 'Create exchange'})">Create exchange</walkthrough-spotlight-pointer>.
+2. Rellena los campos:
+    - **Display name**: `cymbal-exchange`
+    - **Region**: **US** (la multi-región `US`, ya que el *exchange* debe estar en la misma ubicación que el dataset `cymbal_gold` que va a compartir).
+    - **Description**: `Cymbal's curated data products`
+3. Haz clic en **Create exchange**. Cuando aparezca el paso *Exchange permissions*, pulsa **Skip**.
 
-1. Open [Sharing (Analytics Hub)](https://console.cloud.google.com/bigquery/analytics-hub) and click <walkthrough-spotlight-pointer locator="semantic({button 'Create exchange'})">Create exchange</walkthrough-spotlight-pointer>.
-2. Fill in:
-    - Display name: `cymbal-exchange`
-    - Region: **US** (the multi-region) — a listing can only share a dataset that lives in the exchange's region, and your medallion lives in the `US` multi-region.
-    - Description: `Cymbal's curated data products` (primary contact is optional).
-3. Click **Create exchange**. When the *Exchange permissions* step appears, **Skip** it — you granted yourself everything you need a minute ago (in real life, this is where you'd invite publishers and subscribers by email).
+### Redacta el contrato de datos (Data Contract) con `agy`
 
-Notice what you did *not* need: an organization admin. Exchanges are project-level resources — any team that owns a project can open a shop.
-
-### Draft the data contract with agy
-
-A listing is only as trustworthy as its description: a consumer who can't tell what's in the tables, how fresh they are, or what "revenue" means will fall back to emailing you for a CSV. Turning live schemas into honest prose is authoring work — agy's job. Run this one-shot in terminal 1 (the prompt is also in <walkthrough-editor-open-file filePath="content/agenticdata/src/optional/sharing/prompts.md">prompts.md</walkthrough-editor-open-file>):
+Un producto de datos compartido solo genera confianza si va acompañado de un contrato de datos claro que explique qué contiene cada tabla, su frecuencia de actualización y las reglas de negocio de sus métricas. Pide a `agy` que lo redacte en Markdown a partir de los esquemas reales de `cymbal_gold` (el prompt también está en <walkthrough-editor-open-file filePath="content/agenticdata/src/optional/sharing/prompts.md">prompts.md</walkthrough-editor-open-file>):
 
 ```bash
 agy -p "Read the table schemas: bq show --schema {{ PROJECT_ID }}:cymbal_gold.fct_daily_revenue ; bq show --schema {{ PROJECT_ID }}:cymbal_gold.dim_customer_360 ; bq show --schema {{ PROJECT_ID }}:cymbal_gold.fct_product_performance. Then write a listing description for sharing these three tables with Cymbal's partners — a data contract as prose, in markdown: one paragraph on what the dataset is, a short section per table (grain, key columns, what questions it answers), a freshness section (the tables are fed by live Datastream CDC from the production Postgres and rebuilt by Dataform runs), and a definitions section (gross revenue is SUM(qty * unit_price) excluding cancelled orders; lifetime value is the gross revenue of a customer's non-cancelled orders; in fct_daily_revenue amounts are per currency and must never be summed across currencies; lifetime_value and the fct_product_performance amounts sum across order currencies without conversion, so present them as activity indicators, not accounting figures). Output only the markdown."
 ```
 
-Review the draft — you are about to sign it in Cymbal's name. A known-good contract ships with the repository: open <walkthrough-editor-open-file filePath="content/agenticdata/src/optional/sharing/listing_description.md">listing_description.md</walkthrough-editor-open-file> to compare — or to copy from directly, if agy's draft went off-script or you'd rather not select text in a terminal:
+Revisa el borrador generado (o abre directamente la plantilla de referencia incluida en <walkthrough-editor-open-file filePath="content/agenticdata/src/optional/sharing/listing_description.md">listing_description.md</walkthrough-editor-open-file>):
 
 ```bash
 cat content/agenticdata/src/optional/sharing/listing_description.md
 ```
 
-### Publish the listing
+### Publica el Listing
 
-1. Back on the Sharing page, open <walkthrough-spotlight-pointer locator="text('cymbal-exchange')">cymbal-exchange</walkthrough-spotlight-pointer> and click <walkthrough-spotlight-pointer locator="semantic({button 'Create listing'})">Create listing</walkthrough-spotlight-pointer>.
-2. Resource type: **BigQuery dataset** → select `cymbal_gold`.
-3. Listing details:
-    - Display name: `Cymbal Gold — Commerce Analytics`
-    - Description: `Analysis-ready commerce marts: daily revenue, customer 360, product performance. Live CDC + Dataform.`
-    - Paste your reviewed data contract into the **Documentation** field (it takes markdown).
-4. Find the **data egress controls** and tick *Disable copy and export of shared data* — partners get to query the gold, not to bulk-exfiltrate it. (Note the other two options: you can also restrict copying of query results and API-level table exports.)
-5. Click <walkthrough-spotlight-pointer locator="semantic({button 'Publish'})">Publish</walkthrough-spotlight-pointer>.
+1. De vuelta en la página de Sharing, abre <walkthrough-spotlight-pointer locator="text('cymbal-exchange')">cymbal-exchange</walkthrough-spotlight-pointer> y haz clic en <walkthrough-spotlight-pointer locator="semantic({button 'Create listing'})">Create listing</walkthrough-spotlight-pointer>.
+2. **Resource type**: selecciona **BigQuery dataset** → elige `cymbal_gold`.
+3. **Listing details**:
+    - **Display name**: `Cymbal Gold — Commerce Analytics`
+    - **Description**: `Analysis-ready commerce marts: daily revenue, customer 360, product performance. Live CDC + Dataform.`
+    - Pega el contrato de datos en Markdown dentro del campo **Documentation**.
+4. Localiza la sección **data egress controls** y marca la casilla *Disable copy and export of shared data* — de este modo los suscriptores pueden consultar las tablas `gold` pero no copiarlas ni exportarlas masivamente fuera del entorno gobernado.
+5. Haz clic en <walkthrough-spotlight-pointer locator="semantic({button 'Publish'})">Publish</walkthrough-spotlight-pointer>.
 
-Your gold layer is now a product with a front door — description, contract, contact, and house rules.
+### Suscríbete al Listing como consumidor
 
-### Subscribe like a partner
+Ahora ponte en el lugar de otra unidad de negocio o consumidor. Abre el *listing* que acabas de publicar dentro de `cymbal-exchange`:
 
-Time to switch chairs. Open your freshly published listing from the exchange page — this is exactly what a consumer sees: your description, your contract, your contact.
+1. Haz clic en <walkthrough-spotlight-pointer locator="semantic({button 'Subscribe'})">Subscribe</walkthrough-spotlight-pointer> para abrir el diálogo *Create linked dataset*.
+2. Completa los datos:
+    - **Project**: `{{ PROJECT_ID }}` (un publicador puede suscribirse a su propio *listing* para validar la experiencia del consumidor).
+    - **Linked dataset name**: `cymbal_gold_linked`
+    - **Primary region**: **US**
+3. Haz clic en <walkthrough-spotlight-pointer locator="semantic({button 'Save'})">Save</walkthrough-spotlight-pointer>.
 
-1. Click <walkthrough-spotlight-pointer locator="semantic({button 'Subscribe'})">Subscribe</walkthrough-spotlight-pointer>. A *Create linked dataset* dialog appears.
-2. Fill in:
-    - Project: `{{ PROJECT_ID }}` — yes, the same project; a publisher can subscribe to their own listing, which is exactly how you test what partners will experience.
-    - Linked dataset name: `cymbal_gold_linked`
-    - Primary region: **US** (the multi-region, matching the source).
-3. Click <walkthrough-spotlight-pointer locator="semantic({button 'Save'})">Save</walkthrough-spotlight-pointer>.
+Abre ahora [BigQuery](https://console.cloud.google.com/bigquery), despliega tu proyecto y localiza <walkthrough-spotlight-pointer locator="text('cymbal_gold_linked')">cymbal_gold_linked</walkthrough-spotlight-pointer>: verás que lleva un icono especial de dataset enlazado (*linked*). Si entras en `fct_daily_revenue`, verás exactamente el mismo esquema y metadatos que en el original, pero en modo solo lectura y sin haber movido ni duplicado un solo byte.
 
-❗ **The dialog refuses your own project?** Pair up with a neighbor and subscribe to each other's listings instead: each of you opens your own listing, clicks *Set permissions* → *Add principal*, and adds the other's account as an **Analytics Hub Subscriber**; then find their listing via *Search listings* (filter to *Private*) and subscribe. Name the linked dataset `cymbal_gold_linked` and everything below works the same, on their live data instead of your own. (If the org policy blocks cross-account grants, subscribe to a **public** listing instead — Google Trends is a classic.)
+### Demuestra en vivo que es un puntero Zero-Copy y no una copia estática
 
-Now look at what arrived: open [BigQuery](https://console.cloud.google.com/bigquery), expand your project, and find <walkthrough-spotlight-pointer locator="text('cymbal_gold_linked')">cymbal_gold_linked</walkthrough-spotlight-pointer> — wearing a small *linked* badge on its dataset icon. Click into `fct_daily_revenue`: same schema, same descriptions — but read-only. No copy job ran, no bytes moved; this dataset is a pointer.
-
-### Prove it's a pointer, not a copy
-
-"Zero-copy" is a fine slogan — trust, but verify. In the BigQuery query editor (**Compose new query**), run the source and the linked dataset side by side (order counts can be totaled across currencies; revenue can't — your own contract says so — hence euros only):
+En el editor de consultas de **BigQuery**, ejecuta esta consulta comparando lado a lado el dataset origen y el dataset suscrito:
 
 ```sql
 SELECT 'source' AS via, SUM(orders) AS orders,
@@ -102,21 +97,21 @@ SELECT 'linked', SUM(orders),
 FROM `{{ PROJECT_ID }}.cymbal_gold_linked.fct_daily_revenue`
 ```
 
-Two identical rows — of course: it's the same storage. Expect roughly 450,000 non-cancelled orders; the exact number depends on how long your simulator has been running. Now make the *source* move. Your simulator (terminal 2) has been writing to Postgres all along, and Datastream has been keeping bronze fresh — refresh silver from live bronze and rebuild gold, same commands as Lab 3, each run finishing in well under a minute:
+Ambas filas devuelven exactamente las mismas cifras porque leen del mismo almacenamiento físico. Ahora actualiza las tablas origen ejecutando **Dataform** para incorporar los nuevos pedidos que el simulador y **Datastream** han seguido inyectando en `cymbal_bronze`:
 
 ```bash
 cd ~/bootkon/content/agenticdata/src/dataform
 dataform run --tags silver && dataform run --tags gold
 ```
 
-Re-run the query above. Both rows climbed — **in lockstep**. Nobody re-exported anything, no partner pipeline re-ran, and there is no second copy that could go stale. The CSV attachment could never do that.
+Vuelve a ejecutar la consulta SQL anterior en BigQuery: comprobarás que ambas filas (`source` y `linked`) han subido **al unísono y al instante**, sin re-exportaciones ni pipelines de sincronización en el lado del consumidor.
 
-### Check the meters
+### Revisa las métricas de uso y el bloqueo de exfiltración
 
-One more publisher privilege: back on [Sharing (Analytics Hub)](https://console.cloud.google.com/bigquery/analytics-hub), open `cymbal-exchange`, switch to its <walkthrough-spotlight-pointer locator="text('Usage metrics')">Usage metrics</walkthrough-spotlight-pointer> tab, and pick your listing from the *Listings* menu. As the publisher you see total subscriptions, subscribers per organization, jobs executed, bytes scanned, and which shared tables get queried most ([monitor listings](https://docs.cloud.google.com/bigquery/docs/analytics-hub-monitor-listings)). Your own subscription should already be counted; the job charts may trail the queries you just ran — check back later. Under the hood the same numbers live in a SQL view, ready for the day you want to build a mart about your marts: `` `region-us`.INFORMATION_SCHEMA.SHARED_DATASET_USAGE ``.
+De vuelta en [Sharing (Analytics Hub)](https://console.cloud.google.com/bigquery/analytics-hub), entra en `cymbal-exchange`, abre la pestaña <walkthrough-spotlight-pointer locator="text('Usage metrics')">Usage metrics</walkthrough-spotlight-pointer> y selecciona tu *listing*: como publicador tienes visibilidad completa de las suscripciones activas, los trabajos ejecutados y las tablas más consultadas (disponibles también por SQL en `` `region-us`.INFORMATION_SCHEMA.SHARED_DATASET_USAGE ``).
 
-And the egress control? Try copying a table out of `cymbal_gold_linked` (three-dot menu next to the table → *Copy*) — you ticked the box, so the copy is denied. Querying: yes. Exfiltrating: no.
+Y si intentas hacer una copia de una tabla dentro de `cymbal_gold_linked` (menú de tres puntos junto a la tabla → *Copy*), comprobarás que la operación queda bloqueada gracias a la política de *egress control* que activaste al publicar el *listing*.
 
-### Success
+### ¡Completado!
 
-🎉 Superb{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! The CSV-export era at Cymbal is officially over: the gold layer is now a published data product with a prose contract, an egress policy, usage metering — and subscribers who get a live pointer instead of a stale attachment. Publish once, subscribe anywhere. 📬→📡
+🎉 ¡Soberbio{% if MY_NAME %}, {{ MY_NAME }}{% endif %}! La era de compartir datos mediante exportaciones CSV ha terminado: tu capa *gold* es ahora un producto de datos gobernado, con contrato de datos, control de exfiltración, auditoría de uso y distribución instantánea *zero-copy*. 📬→📡
