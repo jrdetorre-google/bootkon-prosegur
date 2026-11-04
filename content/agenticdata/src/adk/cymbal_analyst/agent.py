@@ -18,7 +18,7 @@ from .ca_tool import ask_cymbal_data_agent
 
 root_agent = Agent(
     name="cymbal_analyst",
-    model=os.environ.get("BK_CYMBAL_MODEL", "gemini-3-flash-preview"),
+    model=os.environ.get("BK_CYMBAL_MODEL", "gemini-2.5-flash"),
     description=(
         "Analytics specialist for Cymbal's governed data warehouse. Answers "
         "aggregate business questions (revenue, trends, customer lifetime "
