@@ -1,6 +1,8 @@
 # Agentic Data Bootkon para Prosegur
 
-<img src="content/common/img/prosegur_logo.jpg" width="200" alt="Prosegur"/>
+<p align="center">
+  <img src="content/common/img/prosegur_logo.jpg" width="200" alt="Prosegur"/>
+</p>
 
 ¡Bienvenido a **Agentic Data Bootkon para Prosegur**!
 
