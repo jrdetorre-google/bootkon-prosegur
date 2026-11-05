@@ -168,8 +168,9 @@ Cuando te pregunte tu nombre en la terminal (`What should I call you?`), escribe
 
 ## Créditos y Autores
 
-Edición adaptada para **Prosegur** por el equipo de **Google Cloud Iberia**, basada en el stream oficial **Agentic Data Bootkon** creado por:
+Edición adaptada para **Prosegur** por [Juan Ramon De Torre](https://es.linkedin.com/in/juanramon-detorre), basada en el stream oficial **Agentic Data Bootkon** creado por:
 - [Fabian Hirschmann](https://www.linkedin.com/in/fhirschmann/) (maintainer; main author)
+- [Juan Ramon De Torre](https://es.linkedin.com/in/juanramon-detorre)
 - [Florian Baumert](https://www.linkedin.com/in/florian-baumert/)
 - [Cary Edwards](https://www.linkedin.com/in/cary-edwards-a3a557a6/)
 

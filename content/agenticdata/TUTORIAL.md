@@ -9,7 +9,7 @@
 # Agentic Data Bootkon para Prosegur
 
 <walkthrough-tutorial-duration duration="15"></walkthrough-tutorial-duration>
-Author: <a href="https://linkedin.com/in/fhirschmann">Fabian Hirschmann</a> · Adaptado para Prosegur
+Author: <a href="https://linkedin.com/in/fhirschmann">Fabian Hirschmann</a> · Adaptado para Prosegur por <a href="https://es.linkedin.com/in/juanramon-detorre">Juan Ramon De Torre</a>
 <walkthrough-tutorial-difficulty difficulty="2"></walkthrough-tutorial-difficulty>
 
 
@@ -71,7 +71,8 @@ Después, recarga el entorno y actualiza los valores mostrados en esta página e
 
 ### Créditos
 
-Edición adaptada para **Prosegur** por el equipo de **Google Cloud Iberia**, basada en el stream **Agentic Data Bootkon** creado por:
+Edición adaptada para **Prosegur** por [Juan Ramon De Torre](https://es.linkedin.com/in/juanramon-detorre), basada en el stream **Agentic Data Bootkon** creado por:
 - [Fabian Hirschmann](https://www.linkedin.com/in/fhirschmann/) (main author)
+- [Juan Ramon De Torre](https://es.linkedin.com/in/juanramon-detorre)
 - [Florian Baumert](https://www.linkedin.com/in/florian-baumert/)
 - [Cary Edwards](https://www.linkedin.com/in/cary-edwards-a3a557a6/)

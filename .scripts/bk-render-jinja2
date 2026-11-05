@@ -21,7 +21,7 @@ if not BK_REPO:
 
     
 def render_author(name, url):
-    return f'Author: <a href="{url}">{name}</a>'
+    return f'Author: <a href="{url}">{name}</a> · Adaptado para Prosegur por <a href="https://es.linkedin.com/in/juanramon-detorre">Juan Ramon De Torre</a>'
 
 
 def render_tutorial(content):
