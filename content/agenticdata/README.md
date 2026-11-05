@@ -1,5 +1,7 @@
 # Agentic Data Bootkon para Prosegur
 
+<img src="../common/img/prosegur_logo.jpg" width="200" alt="Prosegur"/>
+
 ¡Bienvenido a **Agentic Data Bootkon para Prosegur**!
 
 **Agentic Data Bootkon para Prosegur** es un hackathon práctico e intensivo diseñado a medida para los equipos de ingeniería de datos, arquitectura e inteligencia artificial de las Unidades de Negocio y áreas corporativas de **Prosegur** (*Prosegur Security, Prosegur Cash, Movistar Prosegur Alarmas, AVOS Tech, Cipher y Corporativo / ITaaS*).
