@@ -31,7 +31,7 @@ Para saber más:
 
 ### Configura la identidad de ejecución (Execution Identity)
 
-¿Quién ejecuta el pipeline a las 3 de la madrugada? No un usuario humano, sino una identidad de servicio. En las ejecuciones planificadas de Dataform intervienen dos identidades: el **Dataform service agent** gestionado por Google (que compila el código y orquesta las corridas) y una **custom service account** con la que se lanzan los trabajos sobre **BigQuery**. Ya dispones de una candidata ideal en tu proyecto: `dataquality-service-account`, pre-aprovisionada para los escaneos del Lab 4 con permisos de lectura en BigQuery; solo necesitamos darle permisos de escritura y autorizar la suplantación (*impersonation*).
+¿Quién ejecuta el pipeline a las 3 de la madrugada? No un usuario humano, sino una identidad de servicio. En las ejecuciones planificadas de Dataform intervienen dos identidades: el **Dataform service agent** gestionado por Google (que compila el código y orquesta las ejecuciones) y una **custom service account** con la que se lanzan los trabajos sobre **BigQuery**. Ya dispones de una candidata ideal en tu proyecto: `dataquality-service-account`, pre-aprovisionada para los escaneos del Lab 4 con permisos de lectura en BigQuery; solo necesitamos darle permisos de escritura y autorizar la suplantación (*impersonation*).
 
 Habilita primero la API de Dataform y materializa su *service agent*:
 
