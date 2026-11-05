@@ -47,7 +47,7 @@ Fallback: `cp content/agenticdata/src/dataform_reference/definitions/*.sqlx cont
 ## Lab 5 — data agent instructions
 
 ```
-agy -p "Read the table schemas: bq show --schema <PROJECT_ID>:cymbal_gold.fct_daily_revenue ; bq show --schema <PROJECT_ID>:cymbal_gold.dim_customer_360 ; bq show --schema <PROJECT_ID>:cymbal_gold.fct_product_performance. Then draft system instructions for a BigQuery conversational data agent over these three tables: synonyms business users might use (revenue, sales, LTV, best sellers), which table answers which kind of question, default groupings (order_date, currency, category), and columns to exclude from summaries (email). Output only the instructions text."
+agy -p "Read the table schemas: bq show --schema <PROJECT_ID>:cymbal_gold.fct_daily_revenue ; bq show --schema <PROJECT_ID>:cymbal_gold.dim_customer_360 ; bq show --schema <PROJECT_ID>:cymbal_gold.fct_product_performance. Then draft system instructions for a BigQuery conversational data agent over these three tables: synonyms business users might use (revenue, sales, LTV, best sellers), which table answers which kind of question, default groupings (order_date, currency, category), and columns to exclude from summaries (email). Output only the instructions text." --dangerously-skip-permissions
 ```
 
 ## Lab 6 — build the analyst agent
