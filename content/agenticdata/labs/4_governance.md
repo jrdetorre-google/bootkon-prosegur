@@ -67,7 +67,7 @@ Lanza ahora la ejecución del escaneo:
 gcloud dataplex datascans run bronzeorders --location={{ REGION }}
 ```
 
-El trabajo tarda entre dos y tres minutos en completarse. Pasado ese tiempo, ve a [BigQuery](https://console.cloud.google.com/bigquery), abre `cymbal_bronze` → `cymbal_orders` y haz clic en la pestaña <walkthrough-spotlight-pointer locator="semantic({tab 'Data quality'})">Data quality</walkthrough-spotlight-pointer> (refresca la página del navegador si aún aparece vacía).
+El trabajo tarda entre dos y tres minutos en completarse. Pasado ese tiempo, ve a [Knowledge Catalog search](https://console.cloud.google.com/dataplex/dp-search) y busca `cymbal_orders`, abre `cymbal_bronze` → `cymbal_orders` y haz clic en la pestaña <walkthrough-spotlight-pointer locator="semantic({tab 'Data quality'})">Data quality</walkthrough-spotlight-pointer> (refresca la página del navegador si aún aparece vacía).
 
 **Verás que el escaneo falla — y ese es exactamente el objetivo.** Un porcentaje de las filas incumple la regla de `status` (por el error tipográfico `shiped`) y otro grupo incumple la regla de `order_ts` con fechas futuras. Tu pipeline de **Dataform** ya limpia estos defectos al pasar a *silver*, pero gracias a este escaneo el catálogo deja constancia visible de que `cymbal_bronze` contiene datos en bruto no aptos para consumo directo por usuarios o agentes.
 
