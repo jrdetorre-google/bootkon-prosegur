@@ -92,8 +92,8 @@ No es necesario descargar nada manualmente: el dataset transaccional (**Cymbal o
 
 Vamos a configurar tu acceso a **Google Cloud Console**:
 
-1. Abre una ventana nueva de tu navegador en modo <font color="red">$\color{red}{\textbf{\textsf{Incógnito}}}$</font> (`Ctrl+Shift+N` en Windows/Linux o `Cmd+Shift+N` en Mac).
-2. Abre esta página del repositorio en la ventana de <font color="red">$\color{red}{\textbf{\textsf{incógnito}}}$</font> que acabas de abrir para seguir leyendo desde ahí.
+1. Abre una ventana nueva de tu navegador en modo <picture><img src="../common/img/incognito_upper.svg" align="texttop" alt="Incógnito"></picture> (`Ctrl+Shift+N` en Windows/Linux o `Cmd+Shift+N` en Mac).
+2. Abre esta página del repositorio en la ventana de <picture><img src="../common/img/incognito_lower.svg" align="texttop" alt="incógnito"></picture> que acabas de abrir para seguir leyendo desde ahí.
 3. Abre <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a> e inicia sesión con las credenciales (`@gcplab.me`) que se te han asignado para el evento.
 4. Acepta los Términos del Servicio (*Terms of Service*).
 
